@@ -47,7 +47,7 @@ void write_num(int n) {
   char b = '0' + (n % 10);
   write(2, &b, 1);
 }
-[[noreturn]] void fail(const char * msg) {
+void warn(const char * msg) {
   write(2, g_file, len(g_file));
   write(2, ":", 1);
   write_num(g_line);
@@ -55,6 +55,10 @@ void write_num(int n) {
   write_num(g_col);
   write(2, ": ", 2);
   write(2, msg, len(msg));
+  write(2, "\n", 1);
+}
+[[noreturn]] void fail(const char * msg) {
+  warn(msg);
   if (g_fd >= 0) close(g_fd);
   exit(1);
 }
@@ -153,7 +157,6 @@ token_t take_raw_token() {
   if (g_took == '/' && peek_char() == '/') return take_comment();
   if (is_idkw_start(g_took)) return take_id_or_kw_token();
   if (is_space(g_took)) return take_space();
-  if (g_took == ';') return ignore();
   if (is_punct(g_took)) return take_punct();
   if (g_took == '"') return take_string();
 
@@ -192,12 +195,12 @@ void check_ret_type() {
   fail("unknown return type");
 }
 
-int d_statement() {
+void d_statement() {
   if (check(t_punct, "{")) {
     while (!take(t_punct, "}")) {
-      if (!d_statement()) return 0;
+      d_statement();
     }
-    return 1;
+    return;
   }
 
   if (g_tok_t != t_idkw) fail("statement should start with an identifier");
@@ -207,10 +210,10 @@ int d_statement() {
     }
   }
 
-  fail("here");
+  if (!take(t_punct, ";")) fail("expecting semi-colon to finish statement");
 }
 
-int d_fn() {
+void d_fn() {
   take_token(); check_ret_type();
 
   if (take_token() != t_idkw) fail("expecting function name");
@@ -219,23 +222,22 @@ int d_fn() {
   while (!take(t_punct, ")")) {
     check_type();
   }
-
-  return 1;
 }
-int d_extern() {
-  if (take(t_idkw, "fn")) return d_fn();
-  fail("we can only declare extern of functions");
+void d_extern() {
+  if (!take(t_idkw, "fn")) fail("we can only declare extern of functions");
+  d_fn();
+  if (!take(t_punct, ";")) fail("expecting semi-colon to finish statement");
 }
-int d_top_level() {
-  take_token();
-  if (!g_tok_t) return 0;
-
+void d_top_level() {
   if (g_tok_t == t_idkw && eq(g_tok, "extern")) return d_extern();
   if (g_tok_t == t_idkw && eq(g_tok, "fn")) {
     d_fn();
     take_token();
     d_statement();
+    return;
   }
+  if (g_tok_t == t_idkw) return d_statement();
+  if (check(t_punct, ";")) return warn("this semi-colon does not seem to be needed");
 
   fail("invalid top-level element");
 }
@@ -244,7 +246,7 @@ int main() {
   g_fd = open(g_file, 0);
   if (g_fd < 0) fail("file not found");
 
-  while (d_top_level()) {}
+  while (take_token()) d_top_level();
 
   close(g_fd);
 }

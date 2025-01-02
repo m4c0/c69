@@ -92,10 +92,3 @@ Also, it is simple to learn the requirement to add a single `main()`-like call
 than adding support for non-UNIX-like platforms. If you ever had to add
 "no-entry-point" to a WASM build, you understand what it means.
 
-### Optional semi-colon
-
-In many languages, semi-colons are useful to identify the end of a statement.
-
-But if statement boundaries are unambiguous in the grammar, then they should
-not be required.
-

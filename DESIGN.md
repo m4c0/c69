@@ -28,6 +28,25 @@ This section contain some specific design decisions.
 They are presented in alphabetical order and indexed in a way you can read them
 as needed, when you find a reference in examples.
 
+### Allowed C types
+
+Only a subset of C types are allowed. `char`, `int` and `void` are aliased as
+needed, but only `void *` is supported. Anything else is a can of worms for
+integrations with non-C ABIs (like C69).
+
+For integer/character literals, sizes are not guaranteed. `long` can be either
+32 or 64 bits depending on compiler and architecture. If a user wants to
+integrate with a library requiring those types, they should be aware of that
+peculiarity and not assuming the calling library does.
+
+Pointers are the Achille's heel of any language integrated with C. No matter
+how many protections we put in C69, passing a pointer to a memory segment via a
+C call allows the called code to do whatever with the data (including accessing
+out-of-bounds segments).
+
+Therefore, instead of marking such integrations with "unsafe" tags or similar,
+C69 only allows passing `void *` to C.
+
 ### Meta-type prefixes
 
 One reason why IDEs are so slow nowadays is the complexity required to compute

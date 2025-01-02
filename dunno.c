@@ -93,7 +93,7 @@ int is_space(char c) {
 }
 
 int is_punct(char c) {
-  return c == '{' || c == '}' || c == '(' || c == ')' || c == ';';
+  return c == '{' || c == '}' || c == '(' || c == ')' || c == ';' || c == '*' || c == '/';
 }
 
 token_t eof() {
@@ -143,8 +143,14 @@ token_t take_punct() {
   return t_punct;
 }
 
+token_t take_comment() {
+  while (take_char() != '\n') {}
+  return ignore();
+}
+
 token_t take_raw_token() {
   if (take_char() == 0) return eof();
+  if (g_took == '/' && peek_char() == '/') return take_comment();
   if (is_idkw_start(g_took)) return take_id_or_kw_token();
   if (is_space(g_took)) return take_space();
   if (g_took == ';') return ignore();
@@ -158,7 +164,33 @@ token_t take_token() {
   return g_tok_t;
 }
 
+int take(token_t t, const char * txt) {
+  take_token();
+  if (t != g_tok_t) return 0;
+  return eq(txt, g_tok);
+}
+
+void check_type() {
+  if (g_tok_t != t_idkw) fail("expecting a type");
+
+  if (eq(g_tok, "any")) return;
+  if (eq(g_tok, "int")) return;
+  if (eq(g_tok, "int")) return;
+
+  fail("unknown type");
+}
+
 int d_fn() {
+  take_token(); check_type();
+
+  if (take_token() != t_idkw) fail("expecting function name");
+  if (!take(t_punct, "(")) fail("expecting left parenthesis");
+
+  while (!take(t_punct, ")")) {
+    check_type();
+
+  }
+
   return 1;
 }
 int d_extern() {

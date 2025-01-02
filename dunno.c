@@ -175,20 +175,28 @@ void check_type() {
 
   if (eq(g_tok, "any")) return;
   if (eq(g_tok, "int")) return;
-  if (eq(g_tok, "int")) return;
+  if (eq(g_tok, "void")) fail("void is only valid as a return type");
 
   fail("unknown type");
 }
+void check_ret_type() {
+  if (g_tok_t != t_idkw) fail("expecting a type");
+
+  if (eq(g_tok, "any")) return;
+  if (eq(g_tok, "int")) return;
+  if (eq(g_tok, "void")) return;
+
+  fail("unknown return type");
+}
 
 int d_fn() {
-  take_token(); check_type();
+  take_token(); check_ret_type();
 
   if (take_token() != t_idkw) fail("expecting function name");
   if (!take(t_punct, "(")) fail("expecting left parenthesis");
 
   while (!take(t_punct, ")")) {
     check_type();
-
   }
 
   return 1;
@@ -204,6 +212,7 @@ int d_top_level() {
   if (!g_tok_t) return 0;
 
   if (g_tok_t == t_idkw && eq(g_tok, "extern")) return d_extern();
+  if (g_tok_t == t_idkw && eq(g_tok, "fn")) return d_fn();
 
   fail("invalid top-level element");
 }

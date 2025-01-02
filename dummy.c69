@@ -1,7 +1,8 @@
 extern fn int puts(c_str);
 
-fn void main() {
+fn void main() {           // [DD - Meta-type prefixes]
   puts("Hello \"World\"");
 }
 
-main() // [DD - No main method]
+main()                     // [DD - No main method]
+                           // [DD - Optional semi-colon]

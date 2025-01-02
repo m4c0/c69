@@ -164,10 +164,13 @@ token_t take_token() {
   return g_tok_t;
 }
 
-int take(token_t t, const char * txt) {
-  take_token();
+int check(token_t t, const char * txt) {
   if (t != g_tok_t) return 0;
   return eq(txt, g_tok);
+}
+int take(token_t t, const char * txt) {
+  take_token();
+  return check(t, txt);
 }
 
 void check_type() {
@@ -189,6 +192,24 @@ void check_ret_type() {
   fail("unknown return type");
 }
 
+int d_statement() {
+  if (check(t_punct, "{")) {
+    while (!take(t_punct, "}")) {
+      if (!d_statement()) return 0;
+    }
+    return 1;
+  }
+
+  if (g_tok_t != t_idkw) fail("statement should start with an identifier");
+
+  if (take(t_punct, "(")) {
+    while (!take(t_punct, ")")) {
+    }
+  }
+
+  fail("here");
+}
+
 int d_fn() {
   take_token(); check_ret_type();
 
@@ -202,17 +223,19 @@ int d_fn() {
   return 1;
 }
 int d_extern() {
-  take_token();
-  if (g_tok_t == t_idkw && eq(g_tok, "fn")) return d_fn();
-
-  fail("we can only declare functions as extern");
+  if (take(t_idkw, "fn")) return d_fn();
+  fail("we can only declare extern of functions");
 }
 int d_top_level() {
   take_token();
   if (!g_tok_t) return 0;
 
   if (g_tok_t == t_idkw && eq(g_tok, "extern")) return d_extern();
-  if (g_tok_t == t_idkw && eq(g_tok, "fn")) return d_fn();
+  if (g_tok_t == t_idkw && eq(g_tok, "fn")) {
+    d_fn();
+    take_token();
+    d_statement();
+  }
 
   fail("invalid top-level element");
 }

@@ -33,6 +33,15 @@ int len(const char * msg) {
   while (msg[res]) res++;
   return res;
 }
+int eq(const char * a, const char * b) {
+  while (*a && *b) {
+    if (*a != *b) return 0;
+    a++;
+    b++;
+  }
+  return *a == *b;
+}
+
 void write_num(int n) {
   if (n > 10) write_num(n / 10);
   char b = '0' + (n % 10);
@@ -134,7 +143,7 @@ token_t take_punct() {
   return t_punct;
 }
 
-token_t take_token() {
+token_t take_raw_token() {
   if (take_char() == 0) return eof();
   if (is_idkw_start(g_took)) return take_id_or_kw_token();
   if (is_space(g_took)) return take_space();
@@ -144,28 +153,34 @@ token_t take_token() {
 
   fail("invalid token");
 }
-
-token_t take_valid_token() {
-  while (take_token() == t_ignore) {}
+token_t take_token() {
+  while (take_raw_token() == t_ignore) {}
   return g_tok_t;
 }
 
-int top_level() {
-  switch (take_valid_token()) {
-    default: fail("unexpected token");
-  }
+int d_fn() {
+  return 1;
+}
+int d_extern() {
+  take_token();
+  if (g_tok_t == t_idkw && eq(g_tok, "fn")) return d_fn();
+
+  fail("we can only declare functions as extern");
+}
+int d_top_level() {
+  take_token();
+  if (!g_tok_t) return 0;
+
+  if (g_tok_t == t_idkw && eq(g_tok, "extern")) return d_extern();
+
+  fail("invalid top-level element");
 }
 
 int main() {
   g_fd = open(g_file, 0);
   if (g_fd < 0) fail("file not found");
 
-  while (take_valid_token()) {
-    write_num(g_tok_t);
-    write(1, " ", 1);
-    write(1, g_tok, len(g_tok));
-    write(1, "\n", 1);
-  }
+  while (d_top_level()) {}
 
   close(g_fd);
 }

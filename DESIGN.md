@@ -3,8 +3,23 @@
 ## Core values
 
 Design decisions of C69 follows a list of simpler "values":
-- Source code should be fun for humans
-- Compilers should be clever
+
+- **Source code should be fun for humans**
+  Writing code should not be a chore. Everything a user type must be there for
+  a reason only the user can explain.
+- **Compilers should be clever**
+  It is a compiler's responsibility to know everything about the code and its
+  target environment.
+- **No language is perfect**
+  Therefore, even C69 is not perfect as well. We should be humble and accept
+  our inefficiency so we can learn and improve.
+- **All languages have something useful**
+  Lessons can be taken from any existing/competing language. Same goes for C69
+  so it will be a success even if its only outcome is a clever idea.
+- **People are clever**
+  Never assume someone is dumb. If they cannot understand something about C69,
+  then it is because it is not clear enough or they got an idea that is better
+  than yours.
 
 ## Specific "rules"
 
@@ -24,8 +39,13 @@ if you want to see the definition of a type named X.
 
 Prefixing a symbol with its meta-type (`fn`, `type`, etc) brings a number of
 benefits:
-- Users only need to `grep -rn "fn .* main` to find the definition of a function named `main` or `grep -rn "type X"` to find the definition of a type named X
-- Grammar loses ambiguity: when it reaches a `fn` then a function follows. Unlike C/C++ where a parser requires going further on the token stream to understand what the user typed.
+
+- Users only need to `grep -rn "fn .* main` to find the definition of a
+  function named `main` or `grep -rn "type X"` to find the definition of a type
+  named X
+- Grammar loses ambiguity: when it reaches a `fn` then a function follows.
+  Unlike C/C++ where a parser requires going further on the token stream to
+  understand what the user typed.
 
 ### No main method
 

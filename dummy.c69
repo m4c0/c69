@@ -3,3 +3,5 @@ extern fn int puts(c_str);
 fn void main() {
   puts("Hello \"World\"");
 }
+
+main() // [DD - No main method]

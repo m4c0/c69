@@ -14,6 +14,7 @@ extern size_t write(int fd, const void *, size_t);
 
 const char * g_file = "dummy.c69";
 char g_buf[102400];
+int g_len;
 
 int len(const char * msg) {
   int res = 0;
@@ -42,7 +43,7 @@ void warn(int j, const char * msg) {
   int col = 1;
 
   write_str(g_file);
-  if (j > 0) {
+  if (j >= 0) {
     for (int i = 0; i < j; i++) {
       if (g_buf[i] == '\n') {
         line++;
@@ -72,25 +73,52 @@ void usage(const char * argv0) {
 void slurp(const char * file) {
   g_file = file;
   int fd = open(g_file, 0);
-  if (fd < 0) fail(0, "file not found");
+  if (fd < 0) fail(-1, "file not found");
 
-  int r = read(fd, g_buf, sizeof(g_buf) - 1);
-  if (r <= 0) fail(0, "failed to read file");
-  g_buf[r] = 0;
+  g_len = read(fd, g_buf, sizeof(g_buf) - 1);
+  if (g_len <= 0) fail(0, "failed to read file");
+  g_buf[g_len] = 0;
 
   close(fd);
 }
+
+////////////////////////////////////////////////////////////////////////
+// https://en.wikipedia.org/wiki/Parser_combinator
+// Assumes grammar to have no ambiguity
+////////////////////////////////////////////////////////////////////////
+
+int empty(int j) { return j; }
+int term(char c, int j) {
+  if (j >= g_len) return -1;
+  if (g_buf[j] == c) return j + 1;
+  return -1;
+}
+int alt(int (*a)(int), int (*b)(int), int j) {
+  int aa = a(j);
+  int bb = b(j);
+  if (aa == -1) return bb;
+  if (bb == -1) return aa;
+  fail(j, "grammar is ambiguos about this");
+}
+int seq(int (*a)(int), int (*b)(int), int j) {
+  int aa = a(j);
+  return aa == -1 ? -1 : b(aa);
+}
+
+int statement(int j) {
+  fail(j, "tbd");
+}
+
+int module(int j) {
+  return seq(statement, module, j);
+}
+
+////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char ** argv) {
   if (argc != 2) usage(argv[0]);
 
   slurp(argv[1]);
 
-  int j = 0;
-  while (g_buf[j]) {
-    if (g_buf[j] == '\n') {
-      warn(j, "here");
-    }
-    j++;
-  }
+  return module(0) == -1 ? 1 : 0;
 }

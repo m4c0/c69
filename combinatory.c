@@ -1,10 +1,10 @@
 #pragma leco tool
-// Not using C standard headers to play almost like a quine. In theory, we can
+// Avoiding C standard headers to play almost like a quine. In theory, we can
 // make the compiler eventually generate a code like this, whilst making the
 // language expressive enough for the task.
 
-// TODO: find a C way of the equivalent of C++'s decltype(sizeof(0))
-#include <stddef.h>  // required because of size_t
+#include <stdarg.h>  // va_list, etc
+#include <stddef.h>  // size_t
 
 extern int    close(int);
 extern void   exit (int);
@@ -34,7 +34,11 @@ void write_str(const char * msg) {
   write(2, msg, len(msg));
 }
 void write_num(int n) {
-  if (n > 10) write_num(n / 10);
+  if (n < 0) {
+    write_str("-");
+    n = -n;
+  }
+  if (n >= 10) write_num(n / 10);
   char b = '0' + (n % 10);
   write(2, &b, 1);
 }
@@ -88,29 +92,92 @@ void slurp(const char * file) {
 ////////////////////////////////////////////////////////////////////////
 
 int empty(int j) { return j; }
-int term(char c, int j) {
+int term(int j, char c) {
   if (j >= g_len) return -1;
   if (g_buf[j] == c) return j + 1;
   return -1;
 }
-int alt(int (*a)(int), int (*b)(int), int j) {
-  int aa = a(j);
-  int bb = b(j);
-  if (aa == -1) return bb;
-  if (bb == -1) return aa;
-  fail(j, "grammar is ambiguos about this");
+int alt(int j, ...) {
+  int res = -1;
+  int (*a)(int j) = 0;
+
+  va_list ap;
+  va_start(ap, j);
+
+  while ((a = va_arg(ap, int (*)(int)))) {
+    int aa = a(j);
+    if (res != -1 && aa != -1) fail(j, "grammar is ambiguos about this");
+    if (aa != -1) res = aa;
+  }
+
+  va_end(ap);
+  return res;
 }
-int seq(int (*a)(int), int (*b)(int), int j) {
-  int aa = a(j);
-  return aa == -1 ? -1 : b(aa);
+int seq(int j, ...) {
+  int (*a)(int j) = 0;
+
+  va_list ap;
+  va_start(ap, j);
+
+  while (j >= 0 && (a = va_arg(ap, int (*)(int)))) j = a(j);
+
+  va_end(ap);
+  return j;
 }
 
-int statement(int j) {
-  fail(j, "tbd");
+int expect(int j, int (*f)(int), const char * msg) {
+  int vj = f(j);
+  if (vj == -1) fail(j, msg);
+  return vj;
 }
+// TODO: remove this
+int logme(int j) {
+  write_num(j);
+  return j;
+}
+
+int c_newline(int j) { return term(j, '\n'); }
+int c_return (int j) { return term(j, '\r'); }
+int c_space  (int j) { return term(j,  ' '); }
+int c_tab    (int j) { return term(j, '\t'); }
+
+int space(int j) { return alt(j, c_newline, c_return, c_space, c_tab, 0); }
+int spaces(int);
+int spaces_0n(int j) { return alt(j, empty, spaces, 0); }
+int spaces(int j) { return seq(j, space, spaces_0n, 0); }
+
+int kw(int j, const char * s) {
+  while (j >= 0 && *s) j = term(j, *s++);
+  return j;
+}
+int kw_extern(int j) { return kw(j, "extern"); }
+int kw_fn(int j)     { return kw(j, "fn");     }
+
+int fn_signature(int j) {
+  return kw_fn(j);
+}
+
+int stmt(int j) {
+  return -1;
+}
+int fn(int j) {
+  return -1;
+}
+
+int extern_after_kw(int j) {
+  return expect(j, fn_signature, "only 'extern fn' supported at the moment");
+}
+int extern_fn(int j) {
+  return seq(j, kw_extern, spaces, extern_after_kw, 0);
+}
+
+int toplevel_stmt(int j) { return alt(j, extern_fn, fn, stmt, 0); }
+int toplevel_spc(int j) { return seq(j, spaces, toplevel_stmt, 0); }
+int toplevel_0(int j) { return alt(j, toplevel_spc, toplevel_stmt, 0); }
+int toplevel(int j) { return expect(j, toplevel_0, "unknown top-level construct"); }
 
 int module(int j) {
-  return seq(statement, module, j);
+  return seq(j, toplevel, module, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////

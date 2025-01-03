@@ -3,7 +3,8 @@
 // make the compiler eventually generate a code like this, whilst making the
 // language expressive enough for the task.
 
-typedef long size_t;
+// TODO: find a C way of the equivalent of C++'s decltype(sizeof(0))
+#include <stddef.h>  // required because of size_t
 
 typedef enum token_t {
   t_nil,

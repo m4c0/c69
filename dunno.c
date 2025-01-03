@@ -43,20 +43,23 @@ int eq(const char * a, const char * b) {
   return *a == *b;
 }
 
+void write_str(const char * msg) {
+  write(2, msg, len(msg));
+}
 void write_num(int n) {
   if (n > 10) write_num(n / 10);
   char b = '0' + (n % 10);
   write(2, &b, 1);
 }
 void warn(const char * msg) {
-  write(2, g_file, len(g_file));
-  write(2, ":", 1);
+  write_str(g_file);
+  write_str(":");
   write_num(g_line);
-  write(2, ":", 1);
+  write_str(":");
   write_num(g_col);
-  write(2, ": ", 2);
-  write(2, msg, len(msg));
-  write(2, "\n", 1);
+  write_str(": ");
+  write_str(msg);
+  write_str("\n");
 }
 [[noreturn]] void fail(const char * msg) {
   warn(msg);
@@ -243,7 +246,14 @@ void d_top_level() {
   fail("invalid top-level element");
 }
 
-int main() {
+int main(int argc, char ** argv) {
+  if (argc != 2) {
+    write_str("usage: ");
+    write_str(argv[0]);
+    write_str(" <file.c69>");
+    exit(1);
+  }
+  g_file = argv[1];
   g_fd = open(g_file, 0);
   if (g_fd < 0) fail("file not found");
 

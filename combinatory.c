@@ -125,6 +125,16 @@ int seq(int j, ...) {
   return j;
 }
 
+// TODO: is it possible to do this without a list of outcomes for alt/seq?
+int one_or_more(int j, int (*a)(int)) {
+  int vj = j = a(j);
+  while (vj >= 0) {
+    vj = a(j);
+    if (vj >= 0) j = vj;
+  }
+  return j;
+}
+
 int expect(int j, int (*f)(int), const char * msg) {
   int vj = f(j);
   if (vj == -1) fail(j, msg);
@@ -136,15 +146,15 @@ int logme(int j) {
   return j;
 }
 
+int c_lparen (int j) { return term(j,  '('); }
 int c_newline(int j) { return term(j, '\n'); }
 int c_return (int j) { return term(j, '\r'); }
+int c_rparen (int j) { return term(j,  ')'); }
 int c_space  (int j) { return term(j,  ' '); }
 int c_tab    (int j) { return term(j, '\t'); }
 
 int space(int j) { return alt(j, c_newline, c_return, c_space, c_tab, 0); }
-int spaces(int);
-int spaces_0n(int j) { return alt(j, empty, spaces, 0); }
-int spaces(int j) { return seq(j, space, spaces_0n, 0); }
+int spaces(int j) { return one_or_more(j, space); }
 
 int kw(int j, const char * s) {
   while (j >= 0 && *s) j = term(j, *s++);
@@ -152,9 +162,38 @@ int kw(int j, const char * s) {
 }
 int kw_extern(int j) { return kw(j, "extern"); }
 int kw_fn(int j)     { return kw(j, "fn");     }
+int kw_int(int j)    { return kw(j, "int");    }
+int kw_void(int j)   { return kw(j, "void");   }
+
+int ret_type(int j) { return alt(j, kw_int, kw_void, 0); }
+
+int ident_start(int j) {
+  // shortcut for alt(term(a), term(b), etc)
+  if (j >= g_len) return -1;
+  char c = g_buf[j];
+  if (c == '_') return j + 1;
+  if (c >= 'a' && c <= 'z') return j + 1;
+  if (c >= 'A' && c <= 'Z') return j + 1;
+  return -1;
+}
+int ident_mid(int j) {
+  // shortcut for alt(term(a), term(b), etc)
+  if (j >= g_len) return -1;
+  char c = g_buf[j];
+  if (c == '_') return j + 1;
+  if (c >= '0' && c <= '9') return j + 1;
+  if (c >= 'a' && c <= 'z') return j + 1;
+  if (c >= 'A' && c <= 'Z') return j + 1;
+  return -1;
+}
+int ident_chars(int j) { return one_or_more(j, ident_mid); }
+int ident(int j) { return seq(j, ident_start, ident_chars, 0); }
+
+int spc_lparen(int j) { return seq(j, spaces, c_lparen, 0); }
+int lparen(int j) { return alt(j, spc_lparen, c_lparen, 0); }
 
 int fn_signature(int j) {
-  return kw_fn(j);
+  return seq(j, kw_fn, spaces, ret_type, spaces, ident, lparen, 0);
 }
 
 int stmt(int j) {

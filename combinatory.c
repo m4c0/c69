@@ -178,12 +178,14 @@ int kw(int j, const char * s) {
   while (j >= 0 && *s) j = term(j, *s++);
   return j;
 }
+int kw_any(int j)    { return kw(j, "any");    }
 int kw_extern(int j) { return kw(j, "extern"); }
 int kw_fn(int j)     { return kw(j, "fn");     }
 int kw_int(int j)    { return kw(j, "int");    }
 int kw_void(int j)   { return kw(j, "void");   }
 
-int ret_type(int j) { return alt(j, kw_int, kw_void, 0); }
+int var_type(int j) { return alt(j, kw_any, kw_int, 0); }
+int ret_type(int j) { return alt(j, var_type, kw_void, 0); }
 
 int ident_start(int j) {
   // shortcut for alt(term(a), term(b), etc)
@@ -215,12 +217,15 @@ int spc_rparen(int j) { return seq(j, spaces, c_rparen, 0); }
 int exp_rparen(int j) { return alt(j, spc_rparen, c_rparen, 0); }
 int rparen(int j) { return expect(j, exp_rparen, "expecting right parenthesis"); }
 
-int spc_semicolon(int j) { return seq(j, spaces, c_semicolon, 0); }
-int exp_semicolon(int j) { return alt(j, spc_semicolon, c_semicolon, 0); }
+int exp_semicolon(int j) { return seq(j, opt_spaces, c_semicolon, 0); }
 int semicolon(int j) { return expect(j, exp_semicolon, "expecting semi-colon"); }
 
+int arg_0(int j) { return seq(j, var_type, ident, 0); }
+int arg(int j) { return alt(j, var_type, arg_0, 0); }
+int args(int j) { return zero_or_more(j, arg); }
+
 int fn_signature(int j) {
-  return seq(j, kw_fn, spaces, ret_type, spaces, ident, lparen, rparen, semicolon, 0);
+  return seq(j, kw_fn, spaces, ret_type, spaces, ident, lparen, args, rparen, semicolon, 0);
 }
 
 int stmt(int j) {

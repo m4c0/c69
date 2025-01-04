@@ -134,6 +134,12 @@ int one_or_more(int j, int (*a)(int)) {
   }
   return j;
 }
+// TODO: is it possible to do this without a list of outcomes for alt/seq?
+int zero_or_more(int j, int (*a)(int)) {
+  // equivalent: one_or_more | empty
+  int vj = one_or_more(j, a);
+  return vj >= 0 ? vj : j;
+}
 
 int expect(int j, int (*f)(int), const char * msg) {
   int vj = f(j);
@@ -146,15 +152,27 @@ int logme(int j) {
   return j;
 }
 
-int c_lparen (int j) { return term(j,  '('); }
-int c_newline(int j) { return term(j, '\n'); }
-int c_return (int j) { return term(j, '\r'); }
-int c_rparen (int j) { return term(j,  ')'); }
-int c_space  (int j) { return term(j,  ' '); }
-int c_tab    (int j) { return term(j, '\t'); }
+int c_lparen   (int j) { return term(j,  '('); }
+int c_newline  (int j) { return term(j, '\n'); }
+int c_return   (int j) { return term(j, '\r'); }
+int c_rparen   (int j) { return term(j,  ')'); }
+int c_slash    (int j) { return term(j,  '/'); }
+int c_space    (int j) { return term(j,  ' '); }
+int c_semicolon(int j) { return term(j,  ';'); }
+int c_tab      (int j) { return term(j, '\t'); }
 
-int space(int j) { return alt(j, c_newline, c_return, c_space, c_tab, 0); }
+int non_nl(int j) {
+  if (j >= g_len) return -1;
+  if (g_buf[j] != '\n') return j + 1;
+  return -1;
+}
+
+int comment_0(int j) { return zero_or_more(j, non_nl); }
+int comment(int j) { return seq(j, c_slash, c_slash, comment_0, c_newline, 0); }
+
+int space(int j) { return alt(j, c_newline, c_return, c_space, c_tab, comment, 0); }
 int spaces(int j) { return one_or_more(j, space); }
+int opt_spaces(int j) { return zero_or_more(j, space); }
 
 int kw(int j, const char * s) {
   while (j >= 0 && *s) j = term(j, *s++);
@@ -190,10 +208,19 @@ int ident_chars(int j) { return one_or_more(j, ident_mid); }
 int ident(int j) { return seq(j, ident_start, ident_chars, 0); }
 
 int spc_lparen(int j) { return seq(j, spaces, c_lparen, 0); }
-int lparen(int j) { return alt(j, spc_lparen, c_lparen, 0); }
+int exp_lparen(int j) { return alt(j, spc_lparen, c_lparen, 0); }
+int lparen(int j) { return expect(j, exp_lparen, "expecting left parenthesis"); }
+
+int spc_rparen(int j) { return seq(j, spaces, c_rparen, 0); }
+int exp_rparen(int j) { return alt(j, spc_rparen, c_rparen, 0); }
+int rparen(int j) { return expect(j, exp_rparen, "expecting right parenthesis"); }
+
+int spc_semicolon(int j) { return seq(j, spaces, c_semicolon, 0); }
+int exp_semicolon(int j) { return alt(j, spc_semicolon, c_semicolon, 0); }
+int semicolon(int j) { return expect(j, exp_semicolon, "expecting semi-colon"); }
 
 int fn_signature(int j) {
-  return seq(j, kw_fn, spaces, ret_type, spaces, ident, lparen, 0);
+  return seq(j, kw_fn, spaces, ret_type, spaces, ident, lparen, rparen, semicolon, 0);
 }
 
 int stmt(int j) {
@@ -210,10 +237,9 @@ int extern_fn(int j) {
   return seq(j, kw_extern, spaces, extern_after_kw, 0);
 }
 
-int toplevel_stmt(int j) { return alt(j, extern_fn, fn, stmt, 0); }
-int toplevel_spc(int j) { return seq(j, spaces, toplevel_stmt, 0); }
-int toplevel_0(int j) { return alt(j, toplevel_spc, toplevel_stmt, 0); }
-int toplevel(int j) { return expect(j, toplevel_0, "unknown top-level construct"); }
+int toplevel_1(int j) { return alt(j, extern_fn, fn, stmt, 0); }
+int toplevel_0(int j) { return expect(j, toplevel_1, "unknown top-level construct"); }
+int toplevel(int j) { return seq(j, opt_spaces, toplevel_0, 0); }
 
 int module(int j) {
   return seq(j, toplevel, module, 0);

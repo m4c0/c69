@@ -152,6 +152,7 @@ int logme(int j) {
   return j;
 }
 
+int c_comma    (int j) { return term(j,  ','); }
 int c_lparen   (int j) { return term(j,  '('); }
 int c_newline  (int j) { return term(j, '\n'); }
 int c_return   (int j) { return term(j, '\r'); }
@@ -171,8 +172,8 @@ int comment_0(int j) { return zero_or_more(j, non_nl); }
 int comment(int j) { return seq(j, c_slash, c_slash, comment_0, c_newline, 0); }
 
 int space(int j) { return alt(j, c_newline, c_return, c_space, c_tab, comment, 0); }
-int spaces(int j) { return one_or_more(j, space); }
-int opt_spaces(int j) { return zero_or_more(j, space); }
+int sp(int j) { return one_or_more(j, space); }
+int osp(int j) { return zero_or_more(j, space); }
 
 int kw(int j, const char * s) {
   while (j >= 0 && *s) j = term(j, *s++);
@@ -209,23 +210,24 @@ int ident_mid(int j) {
 int ident_chars(int j) { return one_or_more(j, ident_mid); }
 int ident(int j) { return seq(j, ident_start, ident_chars, 0); }
 
-int spc_lparen(int j) { return seq(j, spaces, c_lparen, 0); }
-int exp_lparen(int j) { return alt(j, spc_lparen, c_lparen, 0); }
-int lparen(int j) { return expect(j, exp_lparen, "expecting left parenthesis"); }
+int lparen(int j) { return expect(j, c_lparen, "expecting left parenthesis"); }
+int rparen(int j) { return expect(j, c_rparen, "expecting right parenthesis"); }
+int semicolon(int j) { return expect(j, c_semicolon, "expecting semi-colon"); }
 
-int spc_rparen(int j) { return seq(j, spaces, c_rparen, 0); }
-int exp_rparen(int j) { return alt(j, spc_rparen, c_rparen, 0); }
-int rparen(int j) { return expect(j, exp_rparen, "expecting right parenthesis"); }
-
-int exp_semicolon(int j) { return seq(j, opt_spaces, c_semicolon, 0); }
-int semicolon(int j) { return expect(j, exp_semicolon, "expecting semi-colon"); }
-
-int arg_0(int j) { return seq(j, var_type, ident, 0); }
+int arg_type(int j) { return expect(j, var_type, "invalid argument type"); }
+int arg_0(int j) { return seq(j, var_type, sp, ident, 0); }
 int arg(int j) { return alt(j, var_type, arg_0, 0); }
-int args(int j) { return zero_or_more(j, arg); }
+int some_args(int j);
+int next_args(int j) { return seq(j, c_comma, osp, arg, some_args, 0); }
+int some_args_(int j) { return alt(j, c_rparen, next_args, 0); }
+int some_args(int j) { return seq(j, arg, some_args_, 0); }
+int args_(int j) { return alt(j, c_rparen, some_args, 0); }
+int args(int j) { return expect(j, args_, "expecting right-parenthesis or arguments"); }
 
+int fn_ret(int j) { return expect(j, ret_type, "invalid return type"); }
+int fn_name(int j) { return expect(j, ident, "invalid function name"); }
 int fn_signature(int j) {
-  return seq(j, kw_fn, spaces, ret_type, spaces, ident, lparen, args, rparen, semicolon, 0);
+  return seq(j, kw_fn, sp, fn_ret, sp, ident, osp, lparen, osp, args, osp, c_semicolon, 0);
 }
 
 int stmt(int j) {
@@ -235,16 +237,16 @@ int fn(int j) {
   return -1;
 }
 
-int extern_after_kw(int j) {
+int extern_fn(int j) {
   return expect(j, fn_signature, "only 'extern fn' supported at the moment");
 }
-int extern_fn(int j) {
-  return seq(j, kw_extern, spaces, extern_after_kw, 0);
+int externed(int j) {
+  return seq(j, kw_extern, sp, extern_fn, 0);
 }
 
-int toplevel_1(int j) { return alt(j, extern_fn, fn, stmt, 0); }
+int toplevel_1(int j) { return alt(j, externed, fn, stmt, 0); }
 int toplevel_0(int j) { return expect(j, toplevel_1, "unknown top-level construct"); }
-int toplevel(int j) { return seq(j, opt_spaces, toplevel_0, 0); }
+int toplevel(int j) { return seq(j, osp, toplevel_0, 0); }
 
 int module(int j) {
   return seq(j, toplevel, module, 0);

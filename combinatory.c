@@ -137,6 +137,7 @@ int cc_alpha(char c) { c |= 0x20; return c >= 'a' && c <= 'z'; }
 int cc_digit(char c) { return c >= '0' && c <= '9'; }
 int cc_eol(char c) { return c == 0 || c == '\n'; }
 int cc_ident(char c) { return cc_alpha(c) || cc_digit(c) || c == '_'; }
+int cc_ident_start(char c) { return cc_alpha(c) || c == '_'; }
 int cc_non_eol(char c) { return !cc_eol(c); }
 int cc_non_ident(char c) { return !cc_ident(c); }
 int cc_space(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
@@ -160,8 +161,9 @@ ast_t ident(int j, const char * s) {
   if (cc_ident(g_buf[res.j])) return err(j, "mismatched identifier");
   return res;
 }
-ast_t i_int (int j) { return ident(j, "int" ); }
-ast_t i_void(int j) { return ident(j, "void"); }
+ast_t i_int   (int j) { return ident(j, "int"   ); }
+ast_t i_size_t(int j) { return ident(j, "size_t"); }
+ast_t i_void  (int j) { return ident(j, "void"  ); }
 
 ast_t space(int j) { return term(j, cc_space); }
 ast_t comment_start(int j) { return str(j, "//"); }
@@ -176,6 +178,16 @@ ast_t sp(int j) {
   }
 }
 
+ast_t var_type(int j) {
+  return alt(j, (parser_t[]) { i_int, i_size_t, 0 });
+}
+ast_t var_start(int j) { return term(j, cc_ident_start); }
+ast_t var_rest(int j) { return whilst(j, cc_ident); }
+ast_t var_name(int j) { return seq(j, (parser_t[]) { var_start, var_rest, 0 }); }
+ast_t var(int j) {
+  return seq(j, (parser_t[]) { sp, var_type, sp, var_name, 0 });
+}
+
 ////////////////////////////////////////////////////////////////////////
 
 ast_t run(parser_t p, const char * code) {
@@ -187,11 +199,11 @@ ast_t run(parser_t p, const char * code) {
 }
 
 ast_t test(int j) {
-  return sp(j);
+  return var(j);
 }
 
 int main() {
-  ast_t res = run(test, "i64");
+  ast_t res = run(test, "\nint val\n");
   if (res.j == -1) warn(res.start_j, res.str);
   else warn(res.j, "done here");
   return res.j >= 0;

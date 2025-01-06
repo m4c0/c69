@@ -151,13 +151,18 @@ ast_t whilst(int j, int (*fn)(char)) {
 }
 
 int cc_alpha(char c) { c |= 0x20; return c >= 'a' && c <= 'z'; }
+int cc_comma(char c) { return c == ','; }
 int cc_digit(char c) { return c >= '0' && c <= '9'; }
 int cc_eol(char c) { return c == 0 || c == '\n'; }
 int cc_ident(char c) { return cc_alpha(c) || cc_digit(c) || c == '_'; }
 int cc_ident_start(char c) { return cc_alpha(c) || c == '_'; }
 int cc_non_eol(char c) { return !cc_eol(c); }
 int cc_non_ident(char c) { return !cc_ident(c); }
+int cc_rparen(char c) { return c == ')'; }
 int cc_space(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
+
+ast_t c_comma(int j) { return term(j, cc_comma); }
+ast_t c_rparen(int j) { return term(j, cc_rparen); }
 
 ast_t str(int j, const char * str, type_t t) {
   ast_t res = {
@@ -215,6 +220,11 @@ ast_t var(int j) {
   res.type = a[1].type;
   return res;
 }
+ast_t next_var(int j) {
+  ast_t a[3] = { 0 };
+  ast_t res = seq(j, a, (parser_t[]) { sp, c_comma, var, 0 });
+  return res.j < 0 ? res : a[2];
+}
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -227,8 +237,21 @@ ast_t run(parser_t p, const char * code) {
   return p(0);
 }
 
+ast_t rparen(int j) {
+  return seq(j, 0, (parser_t[]) { sp, c_rparen, 0 });
+}
+ast_t more_vars_or_end(int j);
+ast_t more_vars(int j) {
+  return seq(j, 0, (parser_t[]) { next_var, more_vars_or_end, 0 });
+}
+ast_t more_vars_or_end(int j) {
+  return alt(j, (parser_t[]) { more_vars, rparen, 0 });
+}
+ast_t first_var(int j) {
+  return seq(j, 0, (parser_t[]) { var, more_vars_or_end, 0 });
+}
 ast_t test(int j) {
-  return var(j);
+  return alt(j, (parser_t[]) { first_var, rparen, 0 });
 }
 
 int test_case(const char * txt) {
@@ -236,14 +259,14 @@ int test_case(const char * txt) {
   if (res.j == -1) warn(res.start_j, res.str);
   else {
     warn(res.j, "done here");
-    write_str("type: "); write_str(type_name(res.type));
-    if (res.str) { write_str("\nvalue: "); write_str(res.str); write_str("\n"); }
+    write_str("type: "); write_str(type_name(res.type)); write_str("\n");
+    if (res.str) { write_str("value: "); write_str(res.str); write_str("\n");}
   }
   return res.j >= 0;
 }
 int main() {
-  int a = test_case("\nint foo, int bar\n");
-  int b = test_case("\nint foo\n");
-  int c = test_case("\n");
+  int a = test_case("\nint foo, int bar, int baz )\n");
+  int b = test_case("\nint foo )\n");
+  int c = test_case("\n)");
   return (a && b && c) ? 0 : 1;
 }

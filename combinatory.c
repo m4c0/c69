@@ -91,6 +91,7 @@ void slurp(const char * file) {
 
 typedef enum type {
   a_err,
+  a_fn,
   a_int,
   a_nil,
   a_size_t,
@@ -119,6 +120,7 @@ var_t * g_var_ptr = g_var_buf;
 const char * type_name(type_t t) {
   switch (t) {
     case a_err:    return "err";
+    case a_fn:     return "fn";
     case a_int:    return "int";
     case a_nil:    return "nil";
     case a_size_t: return "size_t";
@@ -167,12 +169,14 @@ int cc_digit(char c) { return c >= '0' && c <= '9'; }
 int cc_eol(char c) { return c == 0 || c == '\n'; }
 int cc_ident(char c) { return cc_alpha(c) || cc_digit(c) || c == '_'; }
 int cc_ident_start(char c) { return cc_alpha(c) || c == '_'; }
+int cc_lparen(char c) { return c == '('; }
 int cc_non_eol(char c) { return !cc_eol(c); }
 int cc_non_ident(char c) { return !cc_ident(c); }
 int cc_rparen(char c) { return c == ')'; }
 int cc_space(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 
 ast_t c_comma(int j) { return term(j, cc_comma); }
+ast_t c_lparen(int j) { return term(j, cc_lparen); }
 ast_t c_rparen(int j) { return term(j, cc_rparen); }
 
 ast_t str(int j, const char * str, type_t t) {
@@ -195,6 +199,7 @@ ast_t ident(int j, const char * s, type_t t) {
   res.type = t;
   return res;
 }
+ast_t i_fn    (int j) { return ident(j, "fn",     a_fn    ); }
 ast_t i_int   (int j) { return ident(j, "int",    a_int   ); }
 ast_t i_size_t(int j) { return ident(j, "size_t", a_size_t); }
 ast_t i_void  (int j) { return ident(j, "void",   a_void  ); }
@@ -212,37 +217,35 @@ ast_t sp(int j) {
   }
 }
 
+ast_t comma (int j) { return seq(j, 0, (parser_t[]) { sp, c_comma,  0 }); }
+ast_t lparen(int j) { return seq(j, 0, (parser_t[]) { sp, c_lparen, 0 }); }
+ast_t rparen(int j) { return seq(j, 0, (parser_t[]) { sp, c_rparen, 0 }); }
+
+ast_t ret_type(int j) { return alt(j, (parser_t[]) { i_int, i_size_t, 0 }); }
 ast_t var_type(int j) { return alt(j, (parser_t[]) { i_int, i_size_t, 0 }); }
 ast_t var_start(int j) { return term(j, cc_ident_start); }
 ast_t var_rest(int j) { return whilst(j, cc_ident); }
 ast_t var_name(int j) {
-  ast_t a[2] = { 0 };
-  ast_t res = seq(j, a, (parser_t[]) { var_start, var_rest, 0 });
+  ast_t a[4] = { 0 };
+  ast_t res = seq(j, a, (parser_t[]) { sp, var_start, var_rest, sp, 0 });
   if (res.j < 0) return res;
   res.str = g_ast_ptr;
-  for (int i = j; i < res.j; i++, g_ast_ptr++) *g_ast_ptr = g_buf[i];
+  for (int i = a[0].j; i < res.j; i++, g_ast_ptr++) *g_ast_ptr = g_buf[i];
   *g_ast_ptr++ = 0;
   return res;
 }
 ast_t var(int j) {
-  ast_t a[4] = { 0 };
-  ast_t res = seq(j, a, (parser_t[]) { sp, var_type, sp, var_name, 0 });
+  ast_t a[3] = { 0 };
+  ast_t res = seq(j, a, (parser_t[]) { sp, var_type, var_name, 0 });
   if (res.j < 0) return res;
   res.type = a_nil;
   res.var = g_var_ptr++;
-  res.var->name = a[3].str;
+  res.var->name = a[2].str;
   res.var->type = a[1].type;
   return res;
 }
-ast_t next_var(int j) {
-  ast_t a[3] = { 0 };
-  ast_t res = seq(j, a, (parser_t[]) { sp, c_comma, var, 0 });
-  return res.j < 0 ? res : a[2];
-}
+ast_t next_var(int j) { return seq(j, 0, (parser_t[]) { comma, var, 0 }); }
 
-ast_t rparen(int j) {
-  return seq(j, 0, (parser_t[]) { sp, c_rparen, 0 });
-}
 ast_t more_vars_or_end(int j);
 ast_t more_vars(int j) {
   ast_t a[2] = { 0 };
@@ -252,9 +255,7 @@ ast_t more_vars(int j) {
   r.var->next = a[1].var;
   return r;
 }
-ast_t more_vars_or_end(int j) {
-  return alt(j, (parser_t[]) { more_vars, rparen, 0 });
-}
+ast_t more_vars_or_end(int j) { return alt(j, (parser_t[]) { more_vars, rparen, 0 }); }
 ast_t first_var(int j) {
   ast_t a[2] = { 0 };
   ast_t r = seq(j, a, (parser_t[]) { var, more_vars_or_end, 0 });
@@ -263,9 +264,7 @@ ast_t first_var(int j) {
   r.var->next = a[1].var;
   return r;
 }
-ast_t vars(int j) {
-  return alt(j, (parser_t[]) { first_var, rparen, 0 });
-}
+ast_t vars(int j) { return alt(j, (parser_t[]) { first_var, rparen, 0 }); }
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -279,7 +278,7 @@ ast_t run(parser_t p, const char * code) {
 }
 
 ast_t test(int j) {
-  return vars(j);
+  return seq(j, 0, (parser_t[]) { sp, i_fn, sp, ret_type, var_name, lparen, sp, vars, 0 });
 }
 
 int test_case(const char * txt) {
@@ -303,8 +302,8 @@ int test_case(const char * txt) {
   return res.j >= 0;
 }
 int main() {
-  int a = test_case("\nint foo, int bar, int baz )\n");
-  int b = test_case("\nint foo )\n");
-  int c = test_case("\n)");
+  int a = test_case("\nfn int x ( int foo, int bar, int baz )\n");
+  int b = test_case("\nfn int x ( int foo )\n");
+  int c = test_case("\nfn int x ( )");
   return (a && b && c) ? 0 : 1;
 }

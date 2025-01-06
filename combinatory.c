@@ -266,6 +266,16 @@ ast_t first_var(int j) {
 }
 ast_t vars(int j) { return alt(j, (parser_t[]) { first_var, rparen, 0 }); }
 
+ast_t fn_signature(int j) {
+  ast_t a[9] = { 0 };
+  ast_t r = seq(j, a, (parser_t[]) { sp, i_fn, sp, ret_type, var_name, lparen, sp, vars, 0 });
+  if (r.j < 0) return r;
+  r.type = a[3].type;
+  r.str = a[4].str;
+  r.var = a[7].var;
+  return r;
+}
+
 ////////////////////////////////////////////////////////////////////////
 
 ast_t run(parser_t p, const char * code) {
@@ -278,7 +288,7 @@ ast_t run(parser_t p, const char * code) {
 }
 
 ast_t test(int j) {
-  return seq(j, 0, (parser_t[]) { sp, i_fn, sp, ret_type, var_name, lparen, sp, vars, 0 });
+  return fn_signature(j);
 }
 
 int test_case(const char * txt) {
@@ -303,7 +313,7 @@ int test_case(const char * txt) {
 }
 int main() {
   int a = test_case("\nfn int x ( int foo, int bar, int baz )\n");
-  int b = test_case("\nfn int x ( int foo )\n");
-  int c = test_case("\nfn int x ( )");
+  int b = test_case("\nfn size_t alpha ( int foo )\n");
+  int c = test_case("\nfn int aaa ( )");
   return (a && b && c) ? 0 : 1;
 }

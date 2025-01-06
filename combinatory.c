@@ -92,6 +92,7 @@ void slurp(const char * file) {
 typedef enum type {
   a_err,
   a_int,
+  a_nil,
   a_size_t,
   a_void,
 } type_t;
@@ -109,16 +110,17 @@ typedef struct ast {
 } ast_t;
 typedef ast_t (*parser_t)(int j);
 
-char g_ast_buf[102400];
+char g_ast_buf[102400] = { 0 };
 char * g_ast_ptr = g_ast_buf;
 
-var_t g_var_buf[102400];
+var_t g_var_buf[102400] = { 0 };
 var_t * g_var_ptr = g_var_buf;
 
 const char * type_name(type_t t) {
   switch (t) {
     case a_err:    return "err";
     case a_int:    return "int";
+    case a_nil:    return "nil";
     case a_size_t: return "size_t";
     case a_void:   return "void";
   }
@@ -226,13 +228,43 @@ ast_t var(int j) {
   ast_t a[4] = { 0 };
   ast_t res = seq(j, a, (parser_t[]) { sp, var_type, sp, var_name, 0 });
   if (res.j < 0) return res;
-  res.type = a[1].type;
+  res.type = a_nil;
+  res.var = g_var_ptr++;
+  res.var->name = a[3].str;
+  res.var->type = a[1].type;
   return res;
 }
 ast_t next_var(int j) {
   ast_t a[3] = { 0 };
   ast_t res = seq(j, a, (parser_t[]) { sp, c_comma, var, 0 });
   return res.j < 0 ? res : a[2];
+}
+
+ast_t rparen(int j) {
+  return seq(j, 0, (parser_t[]) { sp, c_rparen, 0 });
+}
+ast_t more_vars_or_end(int j);
+ast_t more_vars(int j) {
+  ast_t a[2] = { 0 };
+  ast_t r = seq(j, a, (parser_t[]) { next_var, more_vars_or_end, 0 });
+  if (r.j < 0) return r;
+  r.var = a[0].var;
+  r.var->next = a[1].var;
+  return r;
+}
+ast_t more_vars_or_end(int j) {
+  return alt(j, (parser_t[]) { more_vars, rparen, 0 });
+}
+ast_t first_var(int j) {
+  ast_t a[2] = { 0 };
+  ast_t r = seq(j, a, (parser_t[]) { var, more_vars_or_end, 0 });
+  if (r.j < 0) return r;
+  r.var = a[0].var;
+  r.var->next = a[1].var;
+  return r;
+}
+ast_t vars(int j) {
+  return alt(j, (parser_t[]) { first_var, rparen, 0 });
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -246,22 +278,6 @@ ast_t run(parser_t p, const char * code) {
   return p(0);
 }
 
-ast_t rparen(int j) {
-  return seq(j, 0, (parser_t[]) { sp, c_rparen, 0 });
-}
-ast_t more_vars_or_end(int j);
-ast_t more_vars(int j) {
-  return seq(j, 0, (parser_t[]) { next_var, more_vars_or_end, 0 });
-}
-ast_t more_vars_or_end(int j) {
-  return alt(j, (parser_t[]) { more_vars, rparen, 0 });
-}
-ast_t first_var(int j) {
-  return seq(j, 0, (parser_t[]) { var, more_vars_or_end, 0 });
-}
-ast_t vars(int j) {
-  return alt(j, (parser_t[]) { first_var, rparen, 0 });
-}
 ast_t test(int j) {
   return vars(j);
 }

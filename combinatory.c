@@ -89,22 +89,31 @@ void slurp(const char * file) {
 // https://en.wikipedia.org/wiki/Parser_combinator
 ////////////////////////////////////////////////////////////////////////
 
-char g_ast_buf[102400];
-char * g_ast_ptr = g_ast_buf;
-
 typedef enum type {
   a_err,
   a_int,
   a_size_t,
   a_void,
 } type_t;
+typedef struct var {
+  type_t type;
+  const char * name;
+  struct var * next;
+} var_t;
 typedef struct ast {
   int j;
   int start_j;
   type_t type;
   const char * str;
+  var_t * var;
 } ast_t;
 typedef ast_t (*parser_t)(int j);
+
+char g_ast_buf[102400];
+char * g_ast_ptr = g_ast_buf;
+
+var_t g_var_buf[102400];
+var_t * g_var_ptr = g_var_buf;
 
 const char * type_name(type_t t) {
   switch (t) {
@@ -250,8 +259,11 @@ ast_t more_vars_or_end(int j) {
 ast_t first_var(int j) {
   return seq(j, 0, (parser_t[]) { var, more_vars_or_end, 0 });
 }
-ast_t test(int j) {
+ast_t vars(int j) {
   return alt(j, (parser_t[]) { first_var, rparen, 0 });
+}
+ast_t test(int j) {
+  return vars(j);
 }
 
 int test_case(const char * txt) {
@@ -261,6 +273,16 @@ int test_case(const char * txt) {
     warn(res.j, "done here");
     write_str("type: "); write_str(type_name(res.type)); write_str("\n");
     if (res.str) { write_str("value: "); write_str(res.str); write_str("\n");}
+
+    var_t * v = res.var;
+    while (v) {
+      write_str("arg: ");
+      write_str(type_name(v->type));
+      write_str(" ");
+      write_str(v->name);
+      write_str("\n");
+      v = v->next;
+    }
   }
   return res.j >= 0;
 }

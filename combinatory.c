@@ -89,9 +89,12 @@ void slurp(const char * file) {
 // https://en.wikipedia.org/wiki/Parser_combinator
 ////////////////////////////////////////////////////////////////////////
 
+typedef enum link {
+  l_nil,
+  l_c,
+} link_t;
 typedef enum type {
   a_err,
-  a_fn,
   a_int,
   a_nil,
   a_size_t,
@@ -108,6 +111,7 @@ typedef struct ast {
   type_t type;
   const char * str;
   var_t * var;
+  link_t linkage;
 } ast_t;
 typedef ast_t (*parser_t)(int j);
 
@@ -120,7 +124,6 @@ var_t * g_var_ptr = g_var_buf;
 const char * type_name(type_t t) {
   switch (t) {
     case a_err:    return "err";
-    case a_fn:     return "fn";
     case a_int:    return "int";
     case a_nil:    return "nil";
     case a_size_t: return "size_t";
@@ -173,11 +176,13 @@ int cc_lparen(char c) { return c == '('; }
 int cc_non_eol(char c) { return !cc_eol(c); }
 int cc_non_ident(char c) { return !cc_ident(c); }
 int cc_rparen(char c) { return c == ')'; }
+int cc_semicolon(char c) { return c == ';'; }
 int cc_space(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 
-ast_t c_comma(int j) { return term(j, cc_comma); }
-ast_t c_lparen(int j) { return term(j, cc_lparen); }
-ast_t c_rparen(int j) { return term(j, cc_rparen); }
+ast_t c_comma    (int j) { return term(j, cc_comma    ); }
+ast_t c_lparen   (int j) { return term(j, cc_lparen   ); }
+ast_t c_rparen   (int j) { return term(j, cc_rparen   ); }
+ast_t c_semicolon(int j) { return term(j, cc_semicolon); }
 
 ast_t str(int j, const char * str, type_t t) {
   ast_t res = {
@@ -199,7 +204,8 @@ ast_t ident(int j, const char * s, type_t t) {
   res.type = t;
   return res;
 }
-ast_t i_fn    (int j) { return ident(j, "fn",     a_fn    ); }
+ast_t i_extern(int j) { return ident(j, "extern", 0); }
+ast_t i_fn    (int j) { return ident(j, "fn",     0); }
 ast_t i_int   (int j) { return ident(j, "int",    a_int   ); }
 ast_t i_size_t(int j) { return ident(j, "size_t", a_size_t); }
 ast_t i_void  (int j) { return ident(j, "void",   a_void  ); }
@@ -217,9 +223,10 @@ ast_t sp(int j) {
   }
 }
 
-ast_t comma (int j) { return seq(j, 0, (parser_t[]) { sp, c_comma,  0 }); }
-ast_t lparen(int j) { return seq(j, 0, (parser_t[]) { sp, c_lparen, 0 }); }
-ast_t rparen(int j) { return seq(j, 0, (parser_t[]) { sp, c_rparen, 0 }); }
+ast_t comma    (int j) { return seq(j, 0, (parser_t[]) { sp, c_comma,      0 }); }
+ast_t lparen   (int j) { return seq(j, 0, (parser_t[]) { sp, c_lparen,     0 }); }
+ast_t rparen   (int j) { return seq(j, 0, (parser_t[]) { sp, c_rparen,     0 }); }
+ast_t semicolon(int j) { return seq(j, 0, (parser_t[]) { sp, c_semicolon,  0 }); }
 
 ast_t ret_type(int j) { return alt(j, (parser_t[]) { i_int, i_size_t, 0 }); }
 ast_t var_type(int j) { return alt(j, (parser_t[]) { i_int, i_size_t, 0 }); }
@@ -276,6 +283,18 @@ ast_t fn_signature(int j) {
   return r;
 }
 
+ast_t extern_fn(int j) {
+  ast_t a[4] = { 0 };
+  ast_t r = seq(j, a, (parser_t[]) { sp, i_extern, fn_signature, semicolon, 0 });
+  if (r.j >= 0) {
+    r.type = a[2].type;
+    r.str = a[2].str;
+    r.var = a[2].var;
+    r.linkage = l_c;
+  }
+  return r;
+}
+
 ////////////////////////////////////////////////////////////////////////
 
 ast_t run(parser_t p, const char * code) {
@@ -288,7 +307,7 @@ ast_t run(parser_t p, const char * code) {
 }
 
 ast_t test(int j) {
-  return fn_signature(j);
+  return extern_fn(j);
 }
 
 int test_case(const char * txt) {
@@ -296,6 +315,7 @@ int test_case(const char * txt) {
   if (res.j == -1) warn(res.start_j, res.str);
   else {
     warn(res.j, "done here");
+    if (res.linkage) write_str("extern\n");
     write_str("type: "); write_str(type_name(res.type)); write_str("\n");
     if (res.str) { write_str("value: "); write_str(res.str); write_str("\n");}
 
@@ -312,8 +332,8 @@ int test_case(const char * txt) {
   return res.j >= 0;
 }
 int main() {
-  int a = test_case("\nfn int x ( int foo, int bar, int baz )\n");
-  int b = test_case("\nfn size_t alpha ( int foo )\n");
-  int c = test_case("\nfn int aaa ( )");
+  int a = test_case("\nextern fn int x ( int foo, int bar, int baz );\n");
+  int b = test_case("\nextern fn size_t alpha ( int foo );\n");
+  int c = test_case("\nextern fn int aaa ( ) ;");
   return (a && b && c) ? 0 : 1;
 }

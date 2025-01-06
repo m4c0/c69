@@ -200,7 +200,7 @@ ast_t var_type(int j) { return alt(j, (parser_t[]) { i_int, i_size_t, 0 }); }
 ast_t var_start(int j) { return term(j, cc_ident_start); }
 ast_t var_rest(int j) { return whilst(j, cc_ident); }
 ast_t var_name(int j) {
-  ast_t a[2];
+  ast_t a[2] = { 0 };
   ast_t res = seq(j, a, (parser_t[]) { var_start, var_rest, 0 });
   if (res.j < 0) return res;
   res.str = g_ast_ptr;
@@ -209,7 +209,7 @@ ast_t var_name(int j) {
   return res;
 }
 ast_t var(int j) {
-  ast_t a[4];
+  ast_t a[4] = { 0 };
   ast_t res = seq(j, a, (parser_t[]) { sp, var_type, sp, var_name, 0 });
   if (res.j < 0) return res;
   res.type = a[1].type;
@@ -221,6 +221,7 @@ ast_t var(int j) {
 ast_t run(parser_t p, const char * code) {
   char * b = g_buf;
   while (*code) *b++ = *code++;
+  *b = 0;
   g_len = b - g_buf;
 
   return p(0);
@@ -230,13 +231,19 @@ ast_t test(int j) {
   return var(j);
 }
 
-int main() {
-  ast_t res = run(test, "\nint val\n");
+int test_case(const char * txt) {
+  ast_t res = run(test, txt);
   if (res.j == -1) warn(res.start_j, res.str);
   else {
     warn(res.j, "done here");
     write_str("type: "); write_str(type_name(res.type));
-    if (res.str) { write_str("\nvalue: "); write_str(res.str); }
+    if (res.str) { write_str("\nvalue: "); write_str(res.str); write_str("\n"); }
   }
-  return res.j >= 0 ? 0 : 1;
+  return res.j >= 0;
+}
+int main() {
+  int a = test_case("\nint foo, int bar\n");
+  int b = test_case("\nint foo\n");
+  int c = test_case("\n");
+  return (a && b && c) ? 0 : 1;
 }

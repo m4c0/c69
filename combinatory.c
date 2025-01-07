@@ -312,7 +312,12 @@ ast_t extern_fn(int j) {
 }
 
 ast_t block(int j) {
-  return seq(j, 0, (parser_t[]) { lbracket, rbracket, 0 });
+  ast_t a[2] = { 0 };
+  ast_t r =  seq(j, a, (parser_t[]) { lbracket, rbracket, 0 });
+  if (a[0].j >= 0 && a[1].j < 0) {
+    fail(j, "bracket without a corresponding close");
+  }
+  return r;
 }
 ast_t stmt(int j) {
   ast_t res = alt(j, (parser_t[]) { block, semicolon, 0 });

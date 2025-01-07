@@ -178,15 +178,19 @@ int cc_digit(char c) { return c >= '0' && c <= '9'; }
 int cc_eol(char c) { return c == 0 || c == '\n'; }
 int cc_ident(char c) { return cc_alpha(c) || cc_digit(c) || c == '_'; }
 int cc_ident_start(char c) { return cc_alpha(c) || c == '_'; }
+int cc_lbracket(char c) { return c == '{'; }
 int cc_lparen(char c) { return c == '('; }
 int cc_non_eol(char c) { return !cc_eol(c); }
 int cc_non_ident(char c) { return !cc_ident(c); }
+int cc_rbracket(char c) { return c == '}'; }
 int cc_rparen(char c) { return c == ')'; }
 int cc_semicolon(char c) { return c == ';'; }
 int cc_space(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 
 ast_t c_comma    (int j) { return term(j, cc_comma    ); }
+ast_t c_lbracket (int j) { return term(j, cc_lbracket ); }
 ast_t c_lparen   (int j) { return term(j, cc_lparen   ); }
+ast_t c_rbracket (int j) { return term(j, cc_rbracket ); }
 ast_t c_rparen   (int j) { return term(j, cc_rparen   ); }
 ast_t c_semicolon(int j) { return term(j, cc_semicolon); }
 
@@ -230,7 +234,9 @@ ast_t sp(int j) {
 }
 
 ast_t comma    (int j) { return seq(j, 0, (parser_t[]) { sp, c_comma,      0 }); }
+ast_t lbracket (int j) { return seq(j, 0, (parser_t[]) { sp, c_lbracket,   0 }); }
 ast_t lparen   (int j) { return seq(j, 0, (parser_t[]) { sp, c_lparen,     0 }); }
+ast_t rbracket (int j) { return seq(j, 0, (parser_t[]) { sp, c_rbracket,   0 }); }
 ast_t rparen   (int j) { return seq(j, 0, (parser_t[]) { sp, c_rparen,     0 }); }
 ast_t semicolon(int j) { return seq(j, 0, (parser_t[]) { sp, c_semicolon,  0 }); }
 
@@ -312,8 +318,13 @@ ast_t run(parser_t p, const char * code) {
   return p(0);
 }
 
+ast_t block(int j) {
+  return seq(j, 0, (parser_t[]) { lbracket, rbracket, 0 });
+}
 ast_t stmt(int j) {
-  return empty(j);
+  ast_t res = alt(j, (parser_t[]) { block, semicolon, 0 });
+  if (res.j <= 0) res.str = "expecting statement";
+  return res;
 }
 ast_t fn(int j) {
   ast_t a[4] = { 0 };
@@ -353,8 +364,8 @@ int test_case(const char * txt) {
   return res.j >= 0;
 }
 int main() {
-  int a = test_case("\nextern fn int x ( int foo, int bar, int baz );\n");
-  int b = test_case("\nextern fn size_t alpha ( int foo );\n");
-  int c = test_case("\nextern fn int aaa ( ) ;");
+  int a = test_case("\n;\n");
+  int b = test_case("\n{ }\n");
+  int c = test_case("\n ");
   return (a && b && c) ? 0 : 1;
 }

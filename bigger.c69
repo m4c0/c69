@@ -1,5 +1,5 @@
-extern fn int    close(int);
-extern fn void   exit (int);
-extern fn int    open (const char *, int);
-extern fn size_t read (int fd, void *, size_t);
-extern fn size_t write(int fd, const void *, size_t);
+extern fn int    close(int fd);
+extern fn void   exit (int code);
+extern fn int    open (const char * fn, int mode);
+extern fn size_t read (int fd, void * ptr, size_t len);
+extern fn size_t write(int fd, const void * ptr, size_t len);

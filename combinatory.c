@@ -307,17 +307,6 @@ ast_t extern_fn(int j) {
   return r;
 }
 
-////////////////////////////////////////////////////////////////////////
-
-ast_t run(parser_t p, const char * code) {
-  char * b = g_buf;
-  while (*code) *b++ = *code++;
-  *b = 0;
-  g_len = b - g_buf;
-
-  return p(0);
-}
-
 ast_t block(int j) {
   return seq(j, 0, (parser_t[]) { lbracket, rbracket, 0 });
 }
@@ -338,8 +327,23 @@ ast_t fn(int j) {
   return r;
 }
 
+ast_t top_level(int j) {
+  return alt(j, (parser_t[]) { extern_fn, fn, stmt, 0 });
+}
+
+////////////////////////////////////////////////////////////////////////
+
+ast_t run(parser_t p, const char * code) {
+  char * b = g_buf;
+  while (*code) *b++ = *code++;
+  *b = 0;
+  g_len = b - g_buf;
+
+  return p(0);
+}
+
 ast_t test(int j) {
-  return stmt(j);
+  return top_level(j);
 }
 
 int test_case(const char * txt) {
@@ -364,8 +368,8 @@ int test_case(const char * txt) {
   return res.j >= 0;
 }
 int main() {
-  int a = test_case("\n;\n");
-  int b = test_case("\n{ }\n");
-  int c = test_case("\n ");
+  int a = test_case("fn int sum(int a, int b) {}\n");
+  int b = test_case("extern fn int puts();\n");
+  int c = test_case("{}\n ");
   return (a && b && c) ? 0 : 1;
 }

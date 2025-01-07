@@ -241,7 +241,11 @@ ast_t rparen   (int j) { return seq(j, 0, (parser_t[]) { sp, c_rparen,     0 });
 ast_t semicolon(int j) { return seq(j, 0, (parser_t[]) { sp, c_semicolon,  0 }); }
 
 ast_t ret_type(int j) { return alt(j, (parser_t[]) { i_int, i_size_t, 0 }); }
-ast_t var_type(int j) { return alt(j, (parser_t[]) { i_int, i_size_t, 0 }); }
+ast_t var_type(int j) {
+  ast_t r = alt(j, (parser_t[]) { i_int, i_size_t, 0 });
+  if (r.j < 0) r.str = "invalid type";
+  return r;
+}
 ast_t var_start(int j) { return term(j, cc_ident_start); }
 ast_t var_rest(int j) { return whilst(j, cc_ident); }
 ast_t var_name(int j) {
@@ -256,11 +260,14 @@ ast_t var_name(int j) {
 ast_t var(int j) {
   ast_t a[3] = { 0 };
   ast_t res = seq(j, a, (parser_t[]) { sp, var_type, var_name, 0 });
-  if (res.j < 0) return res;
-  res.type = a_nil;
-  res.var = g_var_ptr++;
-  res.var->name = a[2].str;
-  res.var->type = a[1].type;
+  if (res.j >= 0) {
+    res.type = a_nil;
+    res.var = g_var_ptr++;
+    res.var->name = a[2].str;
+    res.var->type = a[1].type;
+  } else if (a[1].j >= 0) {
+    fail(a[1].j, "expecting variable name");
+  }
   return res;
 }
 ast_t next_var(int j) { return seq(j, 0, (parser_t[]) { comma, var, 0 }); }
@@ -283,15 +290,20 @@ ast_t first_var(int j) {
   r.var->next = a[1].var;
   return r;
 }
-ast_t vars(int j) { return alt(j, (parser_t[]) { first_var, rparen, 0 }); }
+ast_t vars(int j) {
+  ast_t r = alt(j, (parser_t[]) { first_var, rparen, 0 });
+  if (r.j < 0) r.str = "expecting right-parenthesis or a valid type name";
+  return r;
+}
 
 ast_t fn_signature(int j) {
   ast_t a[9] = { 0 };
   ast_t r = seq(j, a, (parser_t[]) { sp, i_fn, sp, ret_type, var_name, lparen, sp, vars, 0 });
-  if (r.j < 0) return r;
-  r.type = a[3].type;
-  r.str = a[4].str;
-  r.var = a[7].var;
+  if (r.j >= 0) {
+    r.type = a[3].type;
+    r.str = a[4].str;
+    r.var = a[7].var;
+  }
   return r;
 }
 
@@ -303,10 +315,8 @@ ast_t extern_fn(int j) {
     r.str = a[2].str;
     r.var = a[2].var;
     r.linkage = l_c;
-  } else if (a[1].j >= 0 && a[2].j < 0) {
-    fail(a[1].j, "only 'extern fn' is currently supported");
-  } else if (a[2].j >= 0 && a[3].j < 0) {
-    fail(a[2].j, "expecting semicolon to end export");
+  } else if (a[1].j >= 0) {
+    fail(r.start_j, r.str);
   }
   return r;
 }

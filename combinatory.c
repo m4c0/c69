@@ -175,6 +175,7 @@ ast_t whilst(int j, int (*fn)(char)) {
 int cc_alpha(char c) { c |= 0x20; return c >= 'a' && c <= 'z'; }
 int cc_comma(char c) { return c == ','; }
 int cc_digit(char c) { return c >= '0' && c <= '9'; }
+int cc_eof(char c) { return c == 0; }
 int cc_eol(char c) { return c == 0 || c == '\n'; }
 int cc_ident(char c) { return cc_alpha(c) || cc_digit(c) || c == '_'; }
 int cc_ident_start(char c) { return cc_alpha(c) || c == '_'; }
@@ -346,8 +347,19 @@ ast_t fn(int j) {
   return r;
 }
 
+ast_t eof(int j) { return term(j, cc_eof); }
+ast_t end(int j) {
+  return seq(j, 0, (parser_t[]) { sp, eof, 0 });
+}
 ast_t top_level(int j) {
   return alt(j, (parser_t[]) { extern_fn, fn, stmt, 0 });
+}
+ast_t module(int j);
+ast_t module_(int j) {
+  return seq(j, 0, (parser_t[]) { top_level, module, 0 });
+}
+ast_t module(int j) {
+  return alt(j, (parser_t[]) { module_, end, 0 });
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -362,7 +374,7 @@ ast_t run(parser_t p, const char * code) {
 }
 
 ast_t test(int j) {
-  return top_level(j);
+  return module(j);
 }
 
 int print_result(ast_t res) {
@@ -397,7 +409,7 @@ int main(int argc, char ** argv) {
   }
 
   int a = test_case("fn int sum(int a, int b) {}\n");
-  int b = test_case("extern fn int puts();\n");
-  int c = test_case("{}\n ");
+  int b = test_case("{} {} {}");
+  int c = test_case("; ; ; ; ;");
   return (a && b && c) ? 0 : 1;
 }

@@ -95,6 +95,7 @@ typedef enum link {
 } link_t;
 typedef enum type {
   a_nil,
+  a_any,
   a_err,
   a_int,
   a_size_t,
@@ -129,6 +130,7 @@ stmt_t * g_stmt_ptr = g_stmt_buf;
 
 const char * type_name(type_t t) {
   switch (t) {
+    case a_any:    return "any";
     case a_err:    return "err";
     case a_int:    return "int";
     case a_nil:    return "nil";
@@ -215,8 +217,11 @@ ast_t ident(int j, const char * s, type_t t) {
   res.type = t;
   return res;
 }
+
 ast_t i_extern(int j) { return ident(j, "extern", 0); }
 ast_t i_fn    (int j) { return ident(j, "fn",     0); }
+
+ast_t i_any   (int j) { return ident(j, "any",    a_any   ); }
 ast_t i_int   (int j) { return ident(j, "int",    a_int   ); }
 ast_t i_size_t(int j) { return ident(j, "size_t", a_size_t); }
 ast_t i_void  (int j) { return ident(j, "void",   a_void  ); }
@@ -241,11 +246,19 @@ ast_t rbracket (int j) { return seq(j, 0, (parser_t[]) { sp, c_rbracket,   0 });
 ast_t rparen   (int j) { return seq(j, 0, (parser_t[]) { sp, c_rparen,     0 }); }
 ast_t semicolon(int j) { return seq(j, 0, (parser_t[]) { sp, c_semicolon,  0 }); }
 
-ast_t ret_type(int j) { return alt(j, (parser_t[]) { i_int, i_size_t, 0 }); }
+// TODO: improve this proof-of-concept for known invalid C types
+ast_t i_const(int j) { return ident(j, "const", 0); }
+ast_t invalid_types(int j) {
+  ast_t r = alt(j, (parser_t[]) { i_const, 0 });
+  if (r.j < 0) return r;
+  fail(j, "this C type is not valid");
+}
+
 ast_t var_type(int j) {
-  ast_t r = alt(j, (parser_t[]) { i_int, i_size_t, 0 });
-  if (r.j < 0) r.str = "invalid type";
-  return r;
+  return alt(j, (parser_t[]) { i_any, i_int, i_size_t, invalid_types, 0 });
+}
+ast_t ret_type(int j) {
+  return alt(j, (parser_t[]) { var_type, i_void, 0 });
 }
 ast_t var_start(int j) { return term(j, cc_ident_start); }
 ast_t var_rest(int j) { return whilst(j, cc_ident); }
@@ -304,6 +317,8 @@ ast_t fn_signature(int j) {
     r.type = a[3].type;
     r.str = a[4].str;
     r.var = a[7].var;
+  } else if (a[1].j >= 0 && a[3].j < 0) {
+    fail(a[3].start_j, "invalid return type");
   }
   return r;
 }

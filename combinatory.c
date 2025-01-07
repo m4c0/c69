@@ -94,9 +94,9 @@ typedef enum link {
   l_c,
 } link_t;
 typedef enum type {
+  a_nil,
   a_err,
   a_int,
-  a_nil,
   a_size_t,
   a_void,
 } type_t;
@@ -337,7 +337,7 @@ int test_case(const char * txt) {
   else {
     warn(res.j, "done here");
     if (res.linkage) write_str("extern\n");
-    write_str("type: "); write_str(type_name(res.type)); write_str("\n");
+    if (res.type) { write_str("type: "); write_str(type_name(res.type)); write_str("\n"); }
     if (res.str) { write_str("value: "); write_str(res.str); write_str("\n");}
 
     var_t * v = res.var;

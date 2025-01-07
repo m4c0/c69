@@ -1,4 +1,4 @@
-extern fn int puts(any);          // [DD - Allowed C types]
+extern fn int puts(any msg);      // [DD - Allowed C types]
 
 fn void main() {                  // [DD - Meta-type prefixes]
   puts("Hello \"World\"");

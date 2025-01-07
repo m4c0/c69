@@ -105,12 +105,15 @@ typedef struct var {
   const char * name;
   struct var * next;
 } var_t;
+typedef struct stm {
+} stmt_t;
 typedef struct ast {
   int j;
   int start_j;
   type_t type;
   const char * str;
   var_t * var;
+  stmt_t * stmt;
   link_t linkage;
 } ast_t;
 typedef ast_t (*parser_t)(int j);
@@ -120,6 +123,9 @@ char * g_ast_ptr = g_ast_buf;
 
 var_t g_var_buf[102400] = { 0 };
 var_t * g_var_ptr = g_var_buf;
+
+stmt_t g_stmt_buf[102400] = { };
+stmt_t * g_stmt_ptr = g_stmt_buf;
 
 const char * type_name(type_t t) {
   switch (t) {
@@ -306,8 +312,23 @@ ast_t run(parser_t p, const char * code) {
   return p(0);
 }
 
+ast_t stmt(int j) {
+  return empty(j);
+}
+ast_t fn(int j) {
+  ast_t a[4] = { 0 };
+  ast_t r = seq(j, a, (parser_t[]) { sp, fn_signature, stmt, 0 });
+  if (r.j >= 0) {
+    r.type = a[1].type;
+    r.str = a[1].str;
+    r.var = a[1].var;
+    r.stmt = a[2].stmt;
+  }
+  return r;
+}
+
 ast_t test(int j) {
-  return extern_fn(j);
+  return stmt(j);
 }
 
 int test_case(const char * txt) {

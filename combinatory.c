@@ -355,8 +355,7 @@ ast_t test(int j) {
   return top_level(j);
 }
 
-int test_case(const char * txt) {
-  ast_t res = run(test, txt);
+int print_result(ast_t res) {
   if (res.j == -1) warn(res.start_j, res.str);
   else {
     warn(res.j, "done here");
@@ -376,7 +375,17 @@ int test_case(const char * txt) {
   }
   return res.j >= 0;
 }
-int main() {
+int test_case(const char * txt) {
+  ast_t res = run(test, txt);
+  print_result(run(test, txt));
+  return res.j >= 0;
+}
+int main(int argc, char ** argv) {
+  if (argc == 2) {
+    slurp(argv[1]);
+    return print_result(test(0));
+  }
+
   int a = test_case("fn int sum(int a, int b) {}\n");
   int b = test_case("extern fn int puts();\n");
   int c = test_case("{}\n ");

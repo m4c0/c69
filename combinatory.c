@@ -254,11 +254,16 @@ ast_t invalid_types(int j) {
   fail(j, "this C type is not valid");
 }
 
-ast_t var_type(int j) {
-  return alt(j, (parser_t[]) { i_any, i_int, i_size_t, invalid_types, 0 });
-}
 ast_t ret_type(int j) {
-  return alt(j, (parser_t[]) { var_type, i_void, 0 });
+  ast_t r = alt(j, (parser_t[]) { i_any, i_int, i_size_t, i_void, 0 });
+  if (r.j < 0) r.str = "invalid type for a variable";
+  return r;
+}
+ast_t var_type(int j) {
+  ast_t r = alt(j, (parser_t[]) { ret_type, invalid_types, 0 });
+  if (r.j < 0) return r;
+  if (r.type == a_void) return err(j, "void is not a valid type here");
+  return r;
 }
 ast_t var_start(int j) { return term(j, cc_ident_start); }
 ast_t var_rest(int j) { return whilst(j, cc_ident); }
@@ -284,7 +289,14 @@ ast_t var(int j) {
   }
   return res;
 }
-ast_t next_var(int j) { return seq(j, 0, (parser_t[]) { comma, var, 0 }); }
+ast_t next_var(int j) {
+  ast_t a[2] = { 0 };
+  ast_t r = seq(j, a, (parser_t[]) { comma, var, 0 });
+  if (r.j < 0 && a[0].j >= 0) {
+    fail(a[1].start_j, a[1].str);
+  }
+  return r;
+}
 
 ast_t more_vars_or_end(int j);
 ast_t more_vars(int j) {

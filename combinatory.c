@@ -303,6 +303,10 @@ ast_t extern_fn(int j) {
     r.str = a[2].str;
     r.var = a[2].var;
     r.linkage = l_c;
+  } else if (a[1].j >= 0 && a[2].j < 0) {
+    fail(a[1].j, "only 'extern fn' is currently supported");
+  } else if (a[2].j >= 0 && a[3].j < 0) {
+    fail(a[2].j, "expecting semicolon to end export");
   }
   return r;
 }

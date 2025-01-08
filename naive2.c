@@ -89,6 +89,7 @@ void usage(const char * argv0) {
 
 typedef enum tok_type_t {
   tt_nil,
+  tt_comma,
   tt_err,
   tt_ident,
   tt_lbracket,
@@ -100,6 +101,7 @@ typedef enum tok_type_t {
 } tok_type_t;
 const char * tok_names[] = {
   [tt_nil]       = "nil",
+  [tt_comma]     = "comma",
   [tt_err]       = "err",
   [tt_ident]     = "ident",
   [tt_lparen]    = "lparen",
@@ -195,6 +197,7 @@ void t_next() {
   if (*g_f == '{') return t_punct(tt_lbracket);
   if (*g_f == '}') return t_punct(tt_rbracket);
   if (*g_f == ';') return t_punct(tt_semicolon);
+  if (*g_f == ',') return t_punct(tt_comma);
 
   t_err(g_f++, "invalid character");
 }

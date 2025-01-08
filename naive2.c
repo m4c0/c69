@@ -163,9 +163,18 @@ void t_space() { while (cc_space(*g_f)) g_f++; }
 void t_string() {
   const char * start = g_f;
   while (*++g_f != '"') {
-    if (!*g_f) {
-      t_err(start, "end-of-file before closing string");
-      return;
+    if (!*g_f) return t_err(start, "end-of-file before closing string");
+    if (*g_f == '\n') return t_err(start, "end-of-line before closing string");
+    if (*g_f == '\\') {
+      switch (g_f[1]) {
+        case '\\':
+        case 'n':
+        case '"':
+          break;
+        default:
+          return t_err(g_f, "invalid escape code");
+      }
+      g_f++;
     }
   }
   g_f++;

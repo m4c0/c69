@@ -89,22 +89,30 @@ void usage(const char * argv0) {
 
 typedef enum tok_type_t {
   tt_nil,
+  tt_err,
   tt_ident,
+  tt_lbracket,
   tt_lparen,
+  tt_rbracket,
   tt_rparen,
   tt_semicolon,
+  tt_string,
 } tok_type_t;
 const char * tok_names[] = {
   [tt_nil]       = "nil",
+  [tt_err]       = "err",
   [tt_ident]     = "ident",
   [tt_lparen]    = "lparen",
+  [tt_lbracket]  = "lbracket",
   [tt_rparen]    = "rparen",
+  [tt_rbracket]  = "rbracket",
   [tt_semicolon] = "semicolon",
+  [tt_string]    = "string",
 };
 
 typedef struct tok_t {
   tok_type_t type;
-  const char * str;
+  const char * pos;
   unsigned len;
 } tok_t;
 tok_t g_toks[102400] = {};
@@ -118,32 +126,68 @@ int cc_space(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 const char * g_f = g_file_buf;
 tok_t * g_t = g_toks;
 
+void t_comment() {
+  while (*g_f && *g_f != '\n') g_f++;
+}
+
+void t_err(const char * f, const char * msg) {
+  warn(f, msg);
+  *g_t++ = (tok_t) {
+    .type = tt_err,
+    .pos = f,
+    .len = g_f - f,
+  };
+}
+
 void t_identifier() {
   const char * start = g_f;
   while (cc_ident(*g_f)) g_f++;
   *g_t++ = (tok_t) {
     .type = tt_ident,
-    .str = start,
+    .pos = start,
     .len = g_f - start,
   };
 }
 
 void t_punct(tok_type_t tt) {
+  *g_t++ = (tok_t) {
+    .type = tt,
+    .pos = g_f,
+    .len = 1,
+  };
   g_f++;
-  *g_t++ = (tok_t) { tt };
 }
 
 void t_space() { while (cc_space(*g_f)) g_f++; }
 
+void t_string() {
+  const char * start = g_f;
+  while (*++g_f != '"') {
+    if (!*g_f) {
+      t_err(start, "end-of-file before closing string");
+      return;
+    }
+  }
+  g_f++;
+  *g_t++ = (tok_t) {
+    .type = tt_string,
+    .pos = start,
+    .len = g_f - start,
+  };
+}
+
 void t_next() {
   if (cc_ident_start(*g_f)) return t_identifier();
   if (cc_space(*g_f)) return t_space();
+  if (*g_f == '/' && g_f[1] == '/') return t_comment();
+  if (*g_f == '"') return t_string();
   if (*g_f == '(') return t_punct(tt_lparen);
   if (*g_f == ')') return t_punct(tt_rparen);
+  if (*g_f == '{') return t_punct(tt_lbracket);
+  if (*g_f == '}') return t_punct(tt_rbracket);
   if (*g_f == ';') return t_punct(tt_semicolon);
 
-  warn(g_f, "invalid character");
-  g_f++;
+  t_err(g_f++, "invalid character");
 }
 
 void tokenise() { while (*g_f) t_next(); }
@@ -158,7 +202,7 @@ int main(int argc, char ** argv) {
   for (tok_t * t = g_toks; t != g_t; t++) {
     write_str(tok_names[t->type]);
     write_str(" ");
-    if (t->str) write(2, t->str, t->len);
+    if (t->pos) write(2, t->pos, t->len);
     write_str("\n");
   }
 }

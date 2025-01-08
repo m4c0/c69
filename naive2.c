@@ -206,15 +206,64 @@ void tokenise() { while (*g_f) t_next(); }
 
 /////////////////////////////////////////////////////////////
 
+typedef struct ast_t {
+  const char * pos;
+} ast_t;
+ast_t g_asts[102400];
+ast_t * g_a = g_asts;
+
+void restore(const char * msg) {
+  warn(g_t->pos, msg);
+  while (g_t->type && g_t->type != tt_semicolon) g_t++;
+  g_t++;
+}
+
+int take_ident(const char * txt) {
+  if (g_t->type != tt_ident) return 0;
+  if (g_t->len != len(txt)) return 0;
+  for (int i = 0; i < g_t->len; i++) {
+    if (txt[i] != g_t->pos[i]) return 0;
+  }
+  g_t++;
+  return 1;
+}
+int take_var_type() {
+  if (take_ident("int")) return 1;
+  if (take_ident("size_t")) return 1;
+  return 0;
+}
+int take_ret_type() {
+  if (take_ident("void")) return 1;
+  return take_var_type();
+}
+
+void a_extern() {
+  if (!take_ident("fn")) return restore("only 'extern fn' is supported at the moment");
+  if (!take_ret_type()) return restore("invalid return type");
+
+  restore("ok");
+}
+
+void a_top_level() {
+  if (take_ident("extern")) return a_extern();
+
+  restore("invalid top-level element");
+}
+
+void astify() {
+  g_t = g_toks;
+  while (g_t->type) a_top_level();
+}
+
+/////////////////////////////////////////////////////////////
+
 int main(int argc, char ** argv) {
   if (argc != 2) usage(argv[0]);
   slurp(argv[1]);
   tokenise();
+  astify();
 
-  for (tok_t * t = g_toks; t != g_t; t++) {
-    write_str(tok_names[t->type]);
-    write_str(" ");
-    if (t->pos) write(2, t->pos, t->len);
+  for (ast_t * t = g_asts; t != g_a; t++) {
     write_str("\n");
   }
 }

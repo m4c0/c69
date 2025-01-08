@@ -90,10 +90,16 @@ void usage(const char * argv0) {
 typedef enum tok_type_t {
   tt_nil,
   tt_ident,
+  tt_lparen,
+  tt_rparen,
+  tt_semicolon,
 } tok_type_t;
 const char * tok_names[] = {
-  [tt_nil] = "nil",
-  [tt_ident] = "ident",
+  [tt_nil]       = "nil",
+  [tt_ident]     = "ident",
+  [tt_lparen]    = "lparen",
+  [tt_rparen]    = "rparen",
+  [tt_semicolon] = "semicolon",
 };
 
 typedef struct tok_t {
@@ -107,6 +113,7 @@ int cc_alpha(char c) { c |= 0x20; return c >= 'a' && c <= 'z'; }
 int cc_digit(char c) { return c >= '0' && c <= '9'; }
 int cc_ident(char c) { return cc_alpha(c) || cc_digit(c) || c == '_'; }
 int cc_ident_start(char c) { return cc_alpha(c) || c == '_'; }
+int cc_space(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 
 const char * g_f = g_file_buf;
 tok_t * g_t = g_toks;
@@ -121,8 +128,19 @@ void t_identifier() {
   };
 }
 
+void t_punct(tok_type_t tt) {
+  g_f++;
+  *g_t++ = (tok_t) { tt };
+}
+
+void t_space() { while (cc_space(*g_f)) g_f++; }
+
 void t_next() {
   if (cc_ident_start(*g_f)) return t_identifier();
+  if (cc_space(*g_f)) return t_space();
+  if (*g_f == '(') return t_punct(tt_lparen);
+  if (*g_f == ')') return t_punct(tt_rparen);
+  if (*g_f == ';') return t_punct(tt_semicolon);
 
   warn(g_f, "invalid character");
   g_f++;

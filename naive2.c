@@ -222,12 +222,14 @@ const char * var_type_names[] = {
 };
 typedef enum ast_type_t {
   at_nil,
+  at_call,
   at_err,
   at_extern,
   at_fn,
 } ast_type_t;
 const char * ast_type_names[] = {
   [at_nil]    = "nil",
+  [at_call]   = "call",
   [at_err]    = "err",
   [at_extern] = "extern",
   [at_fn]     = "fn",
@@ -329,26 +331,64 @@ ast_t * a_extern() {
   return r;
 }
 
+ast_t * a_stmt();
 ast_t * a_block() {
   // TODO: support for single-line blocks
   if (g_t->type != tt_lbracket) return restore("expecting left bracket");
   g_t++;
 
+  ast_t * r = 0;
+  ast_t * n = 0;
   while (g_t && g_t->type != tt_rbracket) {
-    // TODO: support for statements
-    g_t++;
+    ast_t * s = a_stmt();
+    if (!n) n = r = s;
+    else { n->next = s; n = s; }
   }
   if (g_t->type != tt_rbracket) return restore("eof expecting right bracket");
   g_t++;
 
-  // TODO: return something valid
+  if (!r) r = g_a++;
+  return r;
+}
+ast_t * a_ident_stmt() {
+  tok_t id = *g_t++;
+
+  if (g_t->type == tt_lparen) {
+    while (g_t && g_t->type != tt_rparen) {
+      // TODO: arguments
+      g_t++;
+    }
+    if (g_t->type != tt_rparen) return restore("eof expecting right parenthesis");
+    g_t++;
+    if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
+    g_t++;
+
+    *g_a = (ast_t) {
+      .type = at_call,
+      .var_name = id,
+    };
+    return g_a++;
+  }
+
+  return restore("invalid statement");
+}
+ast_t * a_empty_stmt() {
+  g_a->pos = g_t++->pos;
   return g_a++;
+}
+ast_t * a_stmt() {
+  switch (g_t->type) {
+    case tt_ident:     return a_ident_stmt();
+    case tt_lbracket:  return a_block();
+    case tt_semicolon: return a_empty_stmt();
+    default: return restore("invalid start of statement");
+  }
 }
 ast_t * a_fn() {
   ast_t * r = a_fn_def();
   if (r->type == at_err) return r;
   r->type = at_fn;
-  r->body = a_block();
+  r->body = a_stmt();
   if (r->body->type == at_err) return r;
   return r;
 }
@@ -356,7 +396,7 @@ ast_t * a_fn() {
 ast_t * a_top_level() {
   if (take_ident("extern")) return a_extern();
   if (take_ident("fn")) return a_fn();
-  return a_block();
+  return a_stmt();
 }
 
 ast_t * astify() {

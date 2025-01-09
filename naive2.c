@@ -237,6 +237,7 @@ typedef struct ast_t {
   const char   * pos;
   var_type_t     var_type;
   tok_t          var_name;
+  struct ast_t * args;
   struct ast_t * body;
   struct ast_t * next;
 } ast_t;
@@ -284,6 +285,27 @@ ast_t * a_fn_def() {
   if (g_t->type != tt_lparen) return restore("expecting left-parenthesis");
   g_t++;
 
+  ast_t * an = 0;
+  while (g_t) {
+    if (g_t->type == tt_rparen) break;
+
+    var_type_t vt = take_var_type();
+    if (!vt) return restore("invalid parameter type");
+
+    tok_t vn;
+    if (g_t->type == tt_ident) vn = *g_t++;
+
+    if (g_t->type == tt_comma) g_t++;
+    else if (g_t->type != tt_rparen) {
+      if (vn.type) return restore("expecting identifier, comma or right-parenthesis");
+      else return restore("expecting comma or right-parenthesis");
+    }
+
+    if (!an) r.args = an = g_a++;
+    else { an->next = g_a++; an = an->next; }
+    an->var_type = vt;
+    an->var_name = vn;
+  }
   while (g_t && g_t->type != tt_rparen) {
     // TODO: support for parameters
     g_t++;
@@ -365,7 +387,8 @@ void dump_ast(int ind, ast_t * r) {
     write_str(ast_type_names[r->type]); write_str(" ");
     write_str(var_type_names[r->var_type]); write_str(" ");
     if (r->var_name.pos) write(1, r->var_name.pos, r->var_name.len); write_str("\n");
-    if (r->body) dump_ast(ind + 1, r->body);
+    dump_ast(ind + 1, r->args);
+    dump_ast(ind + 1, r->body);
 
     r = r->next;
   }

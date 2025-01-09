@@ -212,6 +212,12 @@ typedef enum var_type_t {
   vt_size_t,
   vt_void,
 } var_type_t;
+const char * var_type_names[] = {
+  [vt_nil]    = "nil",
+  [vt_int]    = "int",
+  [vt_size_t] = "size_t",
+  [vt_void]   = "void",
+};
 typedef enum ast_type_t {
   at_nil,
   at_err,
@@ -350,15 +356,22 @@ ast_t * astify() {
 
 /////////////////////////////////////////////////////////////
 
+void dump_ast(int ind, ast_t * r) {
+  while (r) {
+    write(1, "                            ", ind);
+    write_str(ast_type_names[r->type]); write_str(" ");
+    write_str(var_type_names[r->var_type]); write_str(" ");
+    if (r->var_name.pos) write(1, r->var_name.pos, r->var_name.len); write_str("\n");
+    if (r->body) dump_ast(ind + 1, r->body);
+
+    r = r->next;
+  }
+}
 int main(int argc, char ** argv) {
   if (argc != 2) usage(argv[0]);
   slurp(argv[1]);
   tokenise();
 
   ast_t * r = astify();
-  while (r) {
-    write_str(ast_type_names[r->type]);
-    write_str("\n");
-    r = r->next;
-  }
+  dump_ast(0, r);
 }

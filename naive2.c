@@ -230,6 +230,7 @@ typedef struct ast_t {
   var_type_t     var_type;
   tok_t          var_name;
   struct ast_t * body;
+  struct ast_t * next;
 } ast_t;
 ast_t g_asts[102400];
 ast_t * g_a = g_asts;
@@ -315,6 +316,7 @@ ast_t * a_block() {
 ast_t * a_fn() {
   ast_t * r = a_fn_def();
   if (r->type == at_err) return r;
+  r->type = at_fn;
   r->body = a_block();
   if (r->body->type == at_err) return r;
   return r;
@@ -323,17 +325,27 @@ ast_t * a_fn() {
 ast_t * a_top_level() {
   if (take_ident("extern")) return a_extern();
   if (take_ident("fn")) return a_fn();
-  // TODO: support for statements
-
-  return restore("invalid top-level element");
+  return a_block();
 }
 
 ast_t * astify() {
-  g_t = g_toks;
-  while (g_t->type) a_top_level();
+  ast_t * r = 0;
+  ast_t * a = 0;
 
-  // TODO: return something valid
-  return g_a++;
+  g_t = g_toks;
+  while (g_t->type) {
+    ast_t * n = a_top_level();
+    if (a) { a->next = n; a = n; }
+    else a = r = n;
+
+    while (a->next) a = a->next;
+  }
+
+  if (!r) {
+    r = g_a++;
+    *r = (ast_t) { at_nil };
+  }
+  return r;
 }
 
 /////////////////////////////////////////////////////////////
@@ -344,6 +356,9 @@ int main(int argc, char ** argv) {
   tokenise();
 
   ast_t * r = astify();
-  write_str(ast_type_names[r->type]);
-  write_str("\n");
+  while (r) {
+    write_str(ast_type_names[r->type]);
+    write_str("\n");
+    r = r->next;
+  }
 }

@@ -212,16 +212,34 @@ typedef enum var_type_t {
   vt_size_t,
   vt_void,
 } var_type_t;
+typedef enum ast_type_t {
+  at_nil,
+  at_err,
+  at_extern,
+  at_fn,
+} ast_type_t;
+const char * ast_type_names[] = {
+  [at_nil]    = "nil",
+  [at_err]    = "err",
+  [at_extern] = "extern",
+  [at_fn]     = "fn",
+};
 typedef struct ast_t {
-  const char * pos;
+  ast_type_t     type;
+  const char   * pos;
+  var_type_t     var_type;
+  tok_t          var_name;
+  struct ast_t * body;
 } ast_t;
 ast_t g_asts[102400];
 ast_t * g_a = g_asts;
 
-void restore(const char * msg) {
+ast_t * restore(const char * msg) {
+  *g_a = (ast_t) { at_err, g_t->pos };
   warn(g_t->pos, msg);
   while (g_t->type && g_t->type != tt_semicolon) g_t++;
   g_t++;
+  return g_a++;
 }
 
 int take_ident(const char * txt) {
@@ -243,12 +261,15 @@ var_type_t take_ret_type() {
   return take_var_type();
 }
 
-void a_fn_def() {
-  var_type_t ret_type = take_ret_type();
-  if (!ret_type) return restore("invalid return type");
+ast_t * a_fn_def() {
+  ast_t r = { 0 };
+
+  r.pos = g_t->pos;
+  r.var_type = take_ret_type();
+  if (!r.var_type) return restore("invalid return type");
 
   if (g_t->type != tt_ident) return restore("invalid export name");
-  tok_t name = *g_t++;
+  r.var_name = *g_t++;
 
   if (g_t->type != tt_lparen) return restore("expecting left-parenthesis");
   g_t++;
@@ -259,18 +280,24 @@ void a_fn_def() {
   }
   if (g_t->type != tt_rparen) return restore("eof expecting right-parenthesis");
   g_t++;
+
+  *g_a = r;
+  return g_a++;
 }
 
-void a_extern() {
+ast_t * a_extern() {
   if (!take_ident("fn")) return restore("only 'extern fn' is supported at the moment");
 
-  a_fn_def();
+  ast_t * r = a_fn_def();
+  if (r->type == at_err) return r;
+  r->type = at_extern;
 
   if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
   g_t++;
+  return r;
 }
 
-void a_block() {
+ast_t * a_block() {
   // TODO: support for single-line blocks
   if (g_t->type != tt_lbracket) return restore("expecting left bracket");
   g_t++;
@@ -281,23 +308,32 @@ void a_block() {
   }
   if (g_t->type != tt_rbracket) return restore("eof expecting right bracket");
   g_t++;
+
+  // TODO: return something valid
+  return g_a++;
 }
-void a_fn() {
-  a_fn_def();
-  a_block();
+ast_t * a_fn() {
+  ast_t * r = a_fn_def();
+  if (r->type == at_err) return r;
+  r->body = a_block();
+  if (r->body->type == at_err) return r;
+  return r;
 }
 
-void a_top_level() {
+ast_t * a_top_level() {
   if (take_ident("extern")) return a_extern();
   if (take_ident("fn")) return a_fn();
   // TODO: support for statements
 
-  restore("invalid top-level element");
+  return restore("invalid top-level element");
 }
 
-void astify() {
+ast_t * astify() {
   g_t = g_toks;
   while (g_t->type) a_top_level();
+
+  // TODO: return something valid
+  return g_a++;
 }
 
 /////////////////////////////////////////////////////////////
@@ -306,10 +342,8 @@ int main(int argc, char ** argv) {
   if (argc != 2) usage(argv[0]);
   slurp(argv[1]);
   tokenise();
-  astify();
 
-  // TODO: build the AST
-  for (ast_t * t = g_asts; t != g_a; t++) {
-    write_str("\n");
-  }
+  ast_t * r = astify();
+  write_str(ast_type_names[r->type]);
+  write_str("\n");
 }

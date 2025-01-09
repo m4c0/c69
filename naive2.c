@@ -208,12 +208,14 @@ void tokenise() { while (*g_f) t_next(); }
 
 typedef enum var_type_t {
   vt_nil,
+  vt_any,
   vt_int,
   vt_size_t,
   vt_void,
 } var_type_t;
 const char * var_type_names[] = {
   [vt_nil]    = "nil",
+  [vt_any]    = "any",
   [vt_int]    = "int",
   [vt_size_t] = "size_t",
   [vt_void]   = "void",
@@ -259,6 +261,7 @@ int take_ident(const char * txt) {
   return 1;
 }
 var_type_t take_var_type() {
+  if (take_ident("any"))    return vt_any;
   if (take_ident("int"))    return vt_int;
   if (take_ident("size_t")) return vt_size_t;
   return vt_nil;

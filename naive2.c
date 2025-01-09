@@ -206,6 +206,12 @@ void tokenise() { while (*g_f) t_next(); }
 
 /////////////////////////////////////////////////////////////
 
+typedef enum var_type_t {
+  vt_nil,
+  vt_int,
+  vt_size_t,
+  vt_void,
+} var_type_t;
 typedef struct ast_t {
   const char * pos;
 } ast_t;
@@ -227,25 +233,64 @@ int take_ident(const char * txt) {
   g_t++;
   return 1;
 }
-int take_var_type() {
-  if (take_ident("int")) return 1;
-  if (take_ident("size_t")) return 1;
-  return 0;
+var_type_t take_var_type() {
+  if (take_ident("int"))    return vt_int;
+  if (take_ident("size_t")) return vt_size_t;
+  return vt_nil;
 }
-int take_ret_type() {
-  if (take_ident("void")) return 1;
+var_type_t take_ret_type() {
+  if (take_ident("void")) return vt_void;
   return take_var_type();
+}
+
+void a_fn_def() {
+  var_type_t ret_type = take_ret_type();
+  if (!ret_type) return restore("invalid return type");
+
+  if (g_t->type != tt_ident) return restore("invalid export name");
+  tok_t name = *g_t++;
+
+  if (g_t->type != tt_lparen) return restore("expecting left-parenthesis");
+  g_t++;
+
+  while (g_t && g_t->type != tt_rparen) {
+    // TODO: support for parameters
+    g_t++;
+  }
+  if (g_t->type != tt_rparen) return restore("eof expecting right-parenthesis");
+  g_t++;
 }
 
 void a_extern() {
   if (!take_ident("fn")) return restore("only 'extern fn' is supported at the moment");
-  if (!take_ret_type()) return restore("invalid return type");
 
-  restore("ok");
+  a_fn_def();
+
+  if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
+  g_t++;
+}
+
+void a_block() {
+  // TODO: support for single-line blocks
+  if (g_t->type != tt_lbracket) return restore("expecting left bracket");
+  g_t++;
+
+  while (g_t && g_t->type != tt_rbracket) {
+    // TODO: support for statements
+    g_t++;
+  }
+  if (g_t->type != tt_rbracket) return restore("eof expecting right bracket");
+  g_t++;
+}
+void a_fn() {
+  a_fn_def();
+  a_block();
 }
 
 void a_top_level() {
   if (take_ident("extern")) return a_extern();
+  if (take_ident("fn")) return a_fn();
+  // TODO: support for statements
 
   restore("invalid top-level element");
 }
@@ -263,6 +308,7 @@ int main(int argc, char ** argv) {
   tokenise();
   astify();
 
+  // TODO: build the AST
   for (ast_t * t = g_asts; t != g_a; t++) {
     write_str("\n");
   }

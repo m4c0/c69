@@ -274,7 +274,9 @@ var_type_t take_ret_type() {
   return take_var_type();
 }
 
-ast_t * a_fn_def() {
+ast_t * a_stmt();
+
+ast_t * as_fn() {
   ast_t r = { 0 };
 
   r.pos = g_t->pos;
@@ -315,24 +317,13 @@ ast_t * a_fn_def() {
   if (g_t->type != tt_rparen) return restore("eof expecting right-parenthesis");
   g_t++;
 
+  r.type = at_fn;
+  r.body = a_stmt();
   *g_a = r;
   return g_a++;
 }
 
-ast_t * a_extern() {
-  if (!take_ident("fn")) return restore("only 'extern fn' is supported at the moment");
-
-  ast_t * r = a_fn_def();
-  if (r->type == at_err) return r;
-  r->type = at_extern;
-
-  if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
-  g_t++;
-  return r;
-}
-
-ast_t * a_stmt();
-ast_t * a_block() {
+ast_t * as_block() {
   // TODO: support for single-line blocks
   if (g_t->type != tt_lbracket) return restore("expecting left bracket");
   g_t++;
@@ -350,7 +341,7 @@ ast_t * a_block() {
   if (!r) r = g_a++;
   return r;
 }
-ast_t * a_ident_stmt() {
+ast_t * as_call() {
   tok_t id = *g_t++;
 
   if (g_t->type == tt_lparen) {
@@ -372,33 +363,35 @@ ast_t * a_ident_stmt() {
 
   return restore("invalid statement");
 }
-ast_t * a_empty_stmt() {
+ast_t * as_ident() {
+  if (take_ident("fn")) return as_fn();
+  return as_call();
+}
+ast_t * as_empty() {
   g_a->pos = g_t++->pos;
   return g_a++;
 }
 ast_t * a_stmt() {
   switch (g_t->type) {
-    case tt_ident:     return a_ident_stmt();
-    case tt_lbracket:  return a_block();
-    case tt_semicolon: return a_empty_stmt();
-    default: return restore("invalid start of statement");
+    case tt_semicolon: return as_empty();
+    case tt_lbracket:  return as_block();
+    case tt_ident:     return as_ident();
+    default:           return restore("invalid statement");
   }
 }
-ast_t * a_fn() {
-  ast_t * r = a_fn_def();
+
+ast_t * a_extern() {
+  if (!take_ident("fn")) restore("only 'extern fn' supported");
+
+  ast_t * r = as_fn();
   if (r->type == at_err) return r;
-  r->type = at_fn;
-  r->body = a_stmt();
-  if (r->body->type == at_err) return r;
+  r->type = at_extern;
   return r;
 }
-
 ast_t * a_top_level() {
   if (take_ident("extern")) return a_extern();
-  if (take_ident("fn")) return a_fn();
   return a_stmt();
 }
-
 ast_t * astify() {
   ast_t * r = 0;
   ast_t * a = 0;

@@ -91,26 +91,17 @@ typedef enum tok_type_t {
   tt_nil,
   tt_comma,
   tt_err,
+  tt_int,
   tt_ident,
   tt_lbracket,
   tt_lparen,
+  tt_lsqbr,
   tt_rbracket,
   tt_rparen,
+  tt_rsqbr,
   tt_semicolon,
   tt_string,
 } tok_type_t;
-const char * tok_names[] = {
-  [tt_nil]       = "nil",
-  [tt_comma]     = "comma",
-  [tt_err]       = "err",
-  [tt_ident]     = "ident",
-  [tt_lparen]    = "lparen",
-  [tt_lbracket]  = "lbracket",
-  [tt_rparen]    = "rparen",
-  [tt_rbracket]  = "rbracket",
-  [tt_semicolon] = "semicolon",
-  [tt_string]    = "string",
-};
 
 typedef struct tok_t {
   tok_type_t type;
@@ -187,15 +178,28 @@ void t_string() {
   };
 }
 
+void t_int() {
+  const char * start = g_f;
+  while (cc_digit(*g_f)) g_f++;
+  *g_t++ = (tok_t) {
+    .type = tt_int,
+    .pos = start,
+    .len = g_f - start,
+  };
+}
+
 void t_next() {
   if (cc_ident_start(*g_f)) return t_identifier();
   if (cc_space(*g_f)) return t_space();
+  if (cc_digit(*g_f)) return t_int();
   if (*g_f == '/' && g_f[1] == '/') return t_comment();
   if (*g_f == '"') return t_string();
   if (*g_f == '(') return t_punct(tt_lparen);
   if (*g_f == ')') return t_punct(tt_rparen);
   if (*g_f == '{') return t_punct(tt_lbracket);
   if (*g_f == '}') return t_punct(tt_rbracket);
+  if (*g_f == '[') return t_punct(tt_lsqbr);
+  if (*g_f == ']') return t_punct(tt_rsqbr);
   if (*g_f == ';') return t_punct(tt_semicolon);
   if (*g_f == ',') return t_punct(tt_comma);
 

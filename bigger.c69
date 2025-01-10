@@ -1,5 +1,9 @@
 extern fn int    close(int fd);
 extern fn void   exit (int code);
-extern fn int    open (any filename, int mode);
+extern fn int    open (char[] filename, int mode);
 extern fn size_t read (int fd, any ptr, size_t len);
 extern fn size_t write(int fd, any ptr, size_t len);
+
+char[]       g_file;
+char[102400] g_file_buf;
+int          g_file_len;

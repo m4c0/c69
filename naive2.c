@@ -226,6 +226,7 @@ typedef enum ast_type_t {
   at_err,
   at_extern,
   at_fn,
+  at_str,
 } ast_type_t;
 const char * ast_type_names[] = {
   [at_nil]    = "nil",
@@ -233,6 +234,7 @@ const char * ast_type_names[] = {
   [at_err]    = "err",
   [at_extern] = "extern",
   [at_fn]     = "fn",
+  [at_str]    = "str",
 };
 typedef struct ast_t {
   ast_type_t     type;
@@ -310,10 +312,6 @@ ast_t * as_fn() {
     an->var_type = vt;
     an->var_name = vn;
   }
-  while (g_t && g_t->type != tt_rparen) {
-    // TODO: support for parameters
-    g_t++;
-  }
   if (g_t->type != tt_rparen) return restore("eof expecting right-parenthesis");
   g_t++;
 
@@ -324,7 +322,7 @@ ast_t * as_fn() {
 }
 
 ast_t * as_block() {
-  // TODO: support for single-line blocks
+  // TODO: support for scopes
   if (g_t->type != tt_lbracket) return restore("expecting left bracket");
   g_t++;
 
@@ -341,31 +339,52 @@ ast_t * as_block() {
   if (!r) r = g_a++;
   return r;
 }
+ast_t * as_expr();
 ast_t * as_call() {
   tok_t id = *g_t++;
 
   if (g_t->type == tt_lparen) {
-    while (g_t && g_t->type != tt_rparen) {
-      // TODO: arguments
-      g_t++;
+    g_t++;
+
+    ast_t * args = 0;
+    ast_t * n = 0;
+    while (g_t) {
+      if (g_t->type == tt_rparen) break;
+
+      ast_t * a = as_expr();
+      if (a->type == at_err) return a;
+      if (!n) n = args = a;
+      else { n->next = a; n = a; }
+      if (g_t->type == tt_comma) {
+        g_t++;
+        continue;
+      }
     }
     if (g_t->type != tt_rparen) return restore("eof expecting right parenthesis");
-    g_t++;
-    if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
     g_t++;
 
     *g_a = (ast_t) {
       .type = at_call,
       .var_name = id,
+      .args = args,
     };
     return g_a++;
   }
 
   return restore("invalid statement");
 }
-ast_t * as_ident() {
-  if (take_ident("fn")) return as_fn();
-  return as_call();
+ast_t * as_expr() {
+  if (g_t->type == tt_ident) return as_call();
+  if (g_t->type == tt_string) {
+    *g_a = (ast_t) {
+      .type = at_str,
+      .pos = g_t->pos,
+      .var_name = *g_t,
+    };
+    g_t++;
+    return g_a++;
+  }
+  return restore("invalid expression");
 }
 ast_t * as_empty() {
   g_a->pos = g_t++->pos;
@@ -375,9 +394,18 @@ ast_t * a_stmt() {
   switch (g_t->type) {
     case tt_semicolon: return as_empty();
     case tt_lbracket:  return as_block();
-    case tt_ident:     return as_ident();
-    default:           return restore("invalid statement");
+    default: break;
   }
+
+  if (take_ident("fn")) return as_fn();
+
+  ast_t * r = as_expr();
+  if (r->type == at_err) return r;
+
+  if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
+  g_t++;
+
+  return r;
 }
 
 ast_t * a_extern() {

@@ -305,12 +305,12 @@ ast_t * as_fn() {
     var_type_t vt = take_var_type();
     if (!vt) return restore("invalid parameter type");
 
-    tok_t vn;
+    tok_t vn = { 0 };
     if (g_t->type == tt_ident) vn = *g_t++;
 
     if (g_t->type == tt_comma) g_t++;
     else if (g_t->type != tt_rparen) {
-      if (vn.type) return restore("expecting identifier, comma or right-parenthesis");
+      if (!vn.type) return restore("expecting identifier, comma or right-parenthesis");
       else return restore("expecting comma or right-parenthesis");
     }
 

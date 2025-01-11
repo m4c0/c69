@@ -230,6 +230,7 @@ const char * var_type_names[] = {
 };
 typedef enum ast_type_t {
   at_nil,
+  at_assign,
   at_call,
   at_decl,
   at_err,
@@ -241,6 +242,7 @@ typedef enum ast_type_t {
 } ast_type_t;
 const char * ast_type_names[] = {
   [at_nil]    = "nil",
+  [at_assign] = "assign",
   [at_call]   = "call",
   [at_decl]   = "decl",
   [at_err]    = "err",
@@ -413,12 +415,28 @@ ast_t * as_call(tok_t id) {
   };
   return g_a++;
 }
+ast_t * as_assign(tok_t l) {
+  ast_t * r = as_expr();
+  if (r->type == at_err) return r;
+
+  *g_a = (ast_t) {
+    .type     = at_assign,
+    .pos      = l.pos,
+    .var_name = l,
+    .body     = r,
+  };
+  return g_a++;
+}
 ast_t * as_from_ident() {
   tok_t id = *g_t++;
 
   if (g_t->type == tt_lparen) {
     g_t++;
     return as_call(id);
+  }
+  if (g_t->type == tt_eq) {
+    g_t++;
+    return as_assign(id);
   }
 
   *g_a = (ast_t) {

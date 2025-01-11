@@ -303,7 +303,7 @@ ast_t * a_var_type() {
   ast_t * r = g_a++;
 
   r->var_type = take_var_type();
-  if (!r->var_type) return restore("invalid parameter type");
+  if (!r->var_type) return r;
 
   if (g_t->type != tt_lsqbr) return r;
   g_t++;
@@ -343,6 +343,7 @@ ast_t * as_fn() {
 
     ast_t * aa = a_var_type();
     if (aa->type == at_err) return aa;
+    if (!aa->var_type) return restore("invalid parameter type");
 
     if (g_t->type == tt_ident) aa->var_name = *g_t++;
 
@@ -409,8 +410,9 @@ ast_t * as_call(tok_t id) {
   return g_a++;
 }
 ast_t * as_from_ident() {
-  var_type_t vt = take_var_type();
-  if (vt) return restore("TODO: variable def");
+  ast_t * var = a_var_type();
+  if (var->type == at_err) return var;
+  if (var->var_type) return var;
 
   tok_t id = *g_t++;
 

@@ -90,6 +90,7 @@ void usage(const char * argv0) {
 typedef enum tok_type_t {
   tt_nil,
   tt_comma,
+  tt_eq,
   tt_err,
   tt_int,
   tt_ident,
@@ -194,6 +195,7 @@ void t_next() {
   if (cc_digit(*g_f)) return t_int();
   if (*g_f == '/' && g_f[1] == '/') return t_comment();
   if (*g_f == '"') return t_string();
+  if (*g_f == '=') return t_punct(tt_eq);
   if (*g_f == '(') return t_punct(tt_lparen);
   if (*g_f == ')') return t_punct(tt_rparen);
   if (*g_f == '{') return t_punct(tt_lbracket);

@@ -485,7 +485,10 @@ ast_t * as_var(ast_t * a) {
 
   a->var_name = *g_t++;
 
-  if (g_t->type == tt_lparen) return restore("this looks like a function - did you forget to use the `fn <type> <name>` syntax?");
+  if (g_t->type == tt_eq) {
+    g_t++;
+    a->body = as_expr();
+  } else if (g_t->type == tt_lparen) return restore("this looks like a function - did you forget to use the `fn <type> <name>` syntax?");
 
   if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
   g_t++;

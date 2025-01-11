@@ -15,10 +15,10 @@ fn void fail(int j, char[] msg) {
 
 fn void slurp(char[] file) {
   g_file = file;
-//   int fd = open(file, 0);
-// 
+  int fd = open(file, 0);
+
 //   int len = read(fd, g_file_buf, 102400 - 1);
 //   if (len <= 0) fail(0, "failed to read file");
-// 
-//   close(fd);
+
+  close(fd);
 }

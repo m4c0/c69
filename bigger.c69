@@ -7,3 +7,18 @@ extern fn size_t write(int fd, any ptr, size_t len);
 char[]       g_file;
 char[102400] g_file_buf;
 int          g_file_len;
+
+void fail(int j, char[] msg) {
+  warn(j, msg);
+  exit(1);
+}
+
+// void slurp(char[] file) {
+//   g_file = file;
+//   int fd = open(file, 0);
+// 
+//   int len = read(fd, g_file_buf, 102400 - 1);
+//   if (len <= 0) fail(0, "failed to read file");
+// 
+//   close(fd);
+// }

@@ -234,6 +234,7 @@ typedef enum ast_type_t {
   at_int,
   at_fn,
   at_str,
+  at_var,
 } ast_type_t;
 const char * ast_type_names[] = {
   [at_nil]    = "nil",
@@ -243,6 +244,7 @@ const char * ast_type_names[] = {
   [at_int]    = "int",
   [at_fn]     = "fn",
   [at_str]    = "str",
+  [at_var]    = "var",
 };
 typedef struct ast_t {
   ast_type_t     type;
@@ -381,35 +383,37 @@ ast_t * as_block() {
   return r;
 }
 ast_t * as_expr();
-ast_t * as_call() {
+ast_t * as_call(tok_t id) {
+  ast_t * args = 0;
+  ast_t * n = 0;
+  while (g_t) {
+    if (g_t->type == tt_rparen) break;
+
+    ast_t * a = as_expr();
+    if (a->type == at_err) return a;
+    if (!n) n = args = a;
+    else { n->next = a; n = a; }
+    if (g_t->type == tt_comma) {
+      g_t++;
+      continue;
+    }
+  }
+  if (g_t->type != tt_rparen) return restore("eof expecting right parenthesis");
+  g_t++;
+
+  *g_a = (ast_t) {
+    .type = at_call,
+    .var_name = id,
+    .args = args,
+  };
+  return g_a++;
+}
+ast_t * as_from_ident() {
   tok_t id = *g_t++;
 
   if (g_t->type == tt_lparen) {
     g_t++;
-
-    ast_t * args = 0;
-    ast_t * n = 0;
-    while (g_t) {
-      if (g_t->type == tt_rparen) break;
-
-      ast_t * a = as_expr();
-      if (a->type == at_err) return a;
-      if (!n) n = args = a;
-      else { n->next = a; n = a; }
-      if (g_t->type == tt_comma) {
-        g_t++;
-        continue;
-      }
-    }
-    if (g_t->type != tt_rparen) return restore("eof expecting right parenthesis");
-    g_t++;
-
-    *g_a = (ast_t) {
-      .type = at_call,
-      .var_name = id,
-      .args = args,
-    };
-    return g_a++;
+    return as_call(id);
   }
 
   return restore("invalid statement");
@@ -433,7 +437,7 @@ ast_t * as_str() {
   return g_a++;
 }
 ast_t * as_expr() {
-  if (g_t->type == tt_ident)  return as_call();
+  if (g_t->type == tt_ident)  return as_from_ident();
   if (g_t->type == tt_int)    return as_int();
   if (g_t->type == tt_string) return as_str();
   return restore("invalid expression");

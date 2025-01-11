@@ -246,6 +246,7 @@ typedef struct ast_t {
   ast_type_t     type;
   const char   * pos;
   var_type_t     var_type;
+  int            var_arity; // -1 == unknown[], 0 == none, n = some[n]
   tok_t          var_name;
   struct ast_t * args;
   struct ast_t * body;
@@ -283,6 +284,40 @@ var_type_t take_ret_type() {
   return take_var_type();
 }
 
+int take_positive_int() {
+  if (g_t->type != tt_int) return -1;
+
+  int res = 0;
+  for (int i = 0; i < g_t->len; i++) {
+    res = res * 10 + (g_t->pos[i] - '0');
+  }
+  g_t++;
+  return res;
+}
+
+ast_t * a_var_type() {
+  ast_t * r = g_a++;
+
+  r->var_type = take_var_type();
+  if (!r->var_type) return restore("invalid parameter type");
+
+  if (g_t->type != tt_lsqbr) return r;
+  g_t++;
+
+  if (g_t->type == tt_rsqbr) {
+    g_t++;
+    r->var_arity = -1;
+    return r;
+  }
+
+  r->var_arity = take_positive_int();
+  if (r->var_arity <= 0) return restore("array sizes must be a positive integer or undefined");
+
+  if (g_t->type != tt_rsqbr) return restore("expecting closing square bracket");
+  g_t++;
+  return r;
+}
+
 ast_t * a_stmt();
 
 ast_t * as_fn() {
@@ -302,22 +337,19 @@ ast_t * as_fn() {
   while (g_t) {
     if (g_t->type == tt_rparen) break;
 
-    ast_t aa = { 0 };
+    ast_t * aa = a_var_type();
+    if (aa->type == at_err) return aa;
 
-    aa.var_type = take_var_type();
-    if (!aa.var_type) return restore("invalid parameter type");
-
-    if (g_t->type == tt_ident) aa.var_name = *g_t++;
+    if (g_t->type == tt_ident) aa->var_name = *g_t++;
 
     if (g_t->type == tt_comma) g_t++;
     else if (g_t->type != tt_rparen) {
-      if (!aa.var_name.type) return restore("expecting identifier, comma or right-parenthesis");
+      if (!aa->var_name.type) return restore("expecting identifier, comma or right-parenthesis");
       else return restore("expecting comma or right-parenthesis");
     }
 
-    if (!an) r.args = an = g_a++;
-    else { an->next = g_a++; an = an->next; }
-    *an = aa;
+    if (!an) r.args = an = aa;
+    else { an->next = aa; an = an->next; }
   }
   if (g_t->type != tt_rparen) return restore("eof expecting right-parenthesis");
   g_t++;
@@ -453,7 +485,17 @@ void dump_ast(int ind, ast_t * r) {
   while (r) {
     write(1, "                            ", ind);
     write_str(ast_type_names[r->type]); write_str(" ");
-    write_str(var_type_names[r->var_type]); write_str(" ");
+    write_str(var_type_names[r->var_type]);
+    switch (r->var_arity) {
+      case -1: write_str("[]"); break;
+      case  0: break;
+      default:
+        write_str("[");
+        write_num(r->var_arity);
+        write_str("]");
+        break;
+    }
+    write_str(" ");
     if (r->var_name.pos) write(1, r->var_name.pos, r->var_name.len); write_str("\n");
     dump_ast(ind + 1, r->args);
     dump_ast(ind + 1, r->body);

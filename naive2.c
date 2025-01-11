@@ -409,6 +409,9 @@ ast_t * as_call(tok_t id) {
   return g_a++;
 }
 ast_t * as_from_ident() {
+  var_type_t vt = take_var_type();
+  if (vt) return restore("TODO: variable def");
+
   tok_t id = *g_t++;
 
   if (g_t->type == tt_lparen) {
@@ -416,7 +419,12 @@ ast_t * as_from_ident() {
     return as_call(id);
   }
 
-  return restore("invalid statement");
+  *g_a = (ast_t) {
+    .type = at_var,
+    .pos = id.pos,
+    .var_name = id,
+  };
+  return g_a++;
 }
 ast_t * as_int() {
   *g_a = (ast_t) {

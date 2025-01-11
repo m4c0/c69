@@ -216,6 +216,16 @@ void tokenise() { while (*g_f) t_next(); }
 
 /////////////////////////////////////////////////////////////
 
+typedef enum oper_type_t {
+  ot_nil,
+  ot_plus,
+  ot_minus,
+} oper_type_t;
+const char * oper_type_names[] = {
+  [ot_nil]   = "nil",
+  [ot_plus]  = "plus",
+  [ot_minus] = "minus",
+};
 typedef enum var_type_t {
   vt_nil,
   vt_any,
@@ -235,6 +245,7 @@ const char * var_type_names[] = {
 typedef enum ast_type_t {
   at_nil,
   at_assign,
+  at_binop,
   at_call,
   at_decl,
   at_err,
@@ -247,6 +258,7 @@ typedef enum ast_type_t {
 const char * ast_type_names[] = {
   [at_nil]    = "nil",
   [at_assign] = "assign",
+  [at_binop]  = "binop",
   [at_call]   = "call",
   [at_decl]   = "decl",
   [at_err]    = "err",
@@ -259,6 +271,7 @@ const char * ast_type_names[] = {
 typedef struct ast_t {
   ast_type_t     type;
   const char   * pos;
+  oper_type_t    oper_type;
   var_type_t     var_type;
   int            var_arity; // -1 == unknown[], 0 == none, n = some[n]
   tok_t          var_name;
@@ -562,8 +575,15 @@ ast_t * astify() {
 void dump_ast(int ind, ast_t * r) {
   while (r) {
     write(1, "                            ", ind);
-    write_str(ast_type_names[r->type]); write_str(" ");
-    write_str(var_type_names[r->var_type]);
+    write_str(ast_type_names[r->type]);
+    if (r->var_type) {
+      write_str(" ");
+      write_str(var_type_names[r->var_type]);
+    }
+    if (r->oper_type) {
+      write_str(" ");
+      write_str(oper_type_names[r->oper_type]);
+    }
     switch (r->var_arity) {
       case -1: write_str("[]"); break;
       case  0: break;

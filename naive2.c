@@ -97,6 +97,8 @@ typedef enum tok_type_t {
   tt_lbracket,
   tt_lparen,
   tt_lsqbr,
+  tt_minus,
+  tt_plus,
   tt_rbracket,
   tt_rparen,
   tt_rsqbr,
@@ -196,6 +198,8 @@ void t_next() {
   if (*g_f == '/' && g_f[1] == '/') return t_comment();
   if (*g_f == '"') return t_string();
   if (*g_f == '=') return t_punct(tt_eq);
+  if (*g_f == '+') return t_punct(tt_plus);
+  if (*g_f == '-') return t_punct(tt_minus);
   if (*g_f == '(') return t_punct(tt_lparen);
   if (*g_f == ')') return t_punct(tt_rparen);
   if (*g_f == '{') return t_punct(tt_lbracket);

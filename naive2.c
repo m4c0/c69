@@ -481,11 +481,35 @@ ast_t * as_str() {
   g_t++;
   return g_a++;
 }
-ast_t * as_expr() {
+ast_t * as_l_expr() {
   if (g_t->type == tt_ident)  return as_from_ident();
   if (g_t->type == tt_int)    return as_int();
   if (g_t->type == tt_string) return as_str();
   return restore("invalid expression");
+}
+ast_t * as_expr() {
+  ast_t * l = as_l_expr();
+  if (l->type == at_err) return l;
+
+  oper_type_t ot = ot_nil;
+  switch (g_t->type) {
+    case tt_plus:  ot = ot_plus;  break;
+    case tt_minus: ot = ot_minus; break;
+    default: return l;
+  }
+  g_t++;
+
+  ast_t * r = as_expr();
+  if (r->type == at_err) return l;
+
+  l->next = r;
+  *g_a = (ast_t) {
+    .type      = at_binop,
+    .pos       = l->pos,
+    .oper_type = ot,
+    .args      = l,
+  };
+  return g_a++;
 }
 ast_t * as_empty() {
   g_a->pos = g_t++->pos;

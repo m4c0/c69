@@ -410,10 +410,6 @@ ast_t * as_call(tok_t id) {
   return g_a++;
 }
 ast_t * as_from_ident() {
-  ast_t * var = a_var_type();
-  if (var->type == at_err) return var;
-  if (var->var_type) return var;
-
   tok_t id = *g_t++;
 
   if (g_t->type == tt_lparen) {
@@ -456,6 +452,13 @@ ast_t * as_empty() {
   g_a->pos = g_t++->pos;
   return g_a++;
 }
+ast_t * as_var(ast_t * a) {
+  if (g_t->type == tt_ident) a->var_name = *g_t++;
+
+  if (g_t->type == tt_lparen) return restore("this looks like a function - did you forget to use the `fn <type> <name>` syntax?");
+
+  return a;
+}
 ast_t * a_stmt() {
   switch (g_t->type) {
     case tt_semicolon: return as_empty();
@@ -464,6 +467,10 @@ ast_t * a_stmt() {
   }
 
   if (take_ident("fn")) return as_fn();
+
+  ast_t * var = a_var_type();
+  if (var->type == at_err) return var;
+  if (var->var_type) return as_var(var);
 
   ast_t * r = as_expr();
   if (r->type == at_err) return r;

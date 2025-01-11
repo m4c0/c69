@@ -412,17 +412,18 @@ ast_t * as_call() {
 
   return restore("invalid statement");
 }
+ast_t * as_str() {
+  *g_a = (ast_t) {
+    .type = at_str,
+    .pos = g_t->pos,
+    .var_name = *g_t,
+  };
+  g_t++;
+  return g_a++;
+}
 ast_t * as_expr() {
-  if (g_t->type == tt_ident) return as_call();
-  if (g_t->type == tt_string) {
-    *g_a = (ast_t) {
-      .type = at_str,
-      .pos = g_t->pos,
-      .var_name = *g_t,
-    };
-    g_t++;
-    return g_a++;
-  }
+  if (g_t->type == tt_ident)  return as_call();
+  if (g_t->type == tt_string) return as_str();
   return restore("invalid expression");
 }
 ast_t * as_empty() {

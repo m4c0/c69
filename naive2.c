@@ -457,7 +457,15 @@ ast_t * as_empty() {
   return g_a++;
 }
 ast_t * as_var(ast_t * a) {
-  if (g_t->type == tt_ident) a->var_name = *g_t++;
+  if (g_t->type != tt_ident) return restore("expecting identifier");
+
+  tok_t * t = g_t;
+  if (take_ret_type()) {
+    g_t = t;
+    return restore("invalid identifier");
+  }
+
+  a->var_name = *g_t++;
 
   if (g_t->type == tt_lparen) return restore("this looks like a function - did you forget to use the `fn <type> <name>` syntax?");
 

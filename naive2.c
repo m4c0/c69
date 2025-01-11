@@ -302,22 +302,22 @@ ast_t * as_fn() {
   while (g_t) {
     if (g_t->type == tt_rparen) break;
 
-    var_type_t vt = take_var_type();
-    if (!vt) return restore("invalid parameter type");
+    ast_t aa = { 0 };
 
-    tok_t vn = { 0 };
-    if (g_t->type == tt_ident) vn = *g_t++;
+    aa.var_type = take_var_type();
+    if (!aa.var_type) return restore("invalid parameter type");
+
+    if (g_t->type == tt_ident) aa.var_name = *g_t++;
 
     if (g_t->type == tt_comma) g_t++;
     else if (g_t->type != tt_rparen) {
-      if (!vn.type) return restore("expecting identifier, comma or right-parenthesis");
+      if (!aa.var_name.type) return restore("expecting identifier, comma or right-parenthesis");
       else return restore("expecting comma or right-parenthesis");
     }
 
     if (!an) r.args = an = g_a++;
     else { an->next = g_a++; an = an->next; }
-    an->var_type = vt;
-    an->var_name = vn;
+    *an = aa;
   }
   if (g_t->type != tt_rparen) return restore("eof expecting right-parenthesis");
   g_t++;

@@ -231,6 +231,7 @@ typedef enum ast_type_t {
   at_call,
   at_err,
   at_extern,
+  at_int,
   at_fn,
   at_str,
 } ast_type_t;
@@ -239,6 +240,7 @@ const char * ast_type_names[] = {
   [at_call]   = "call",
   [at_err]    = "err",
   [at_extern] = "extern",
+  [at_int]    = "int",
   [at_fn]     = "fn",
   [at_str]    = "str",
 };
@@ -412,6 +414,15 @@ ast_t * as_call() {
 
   return restore("invalid statement");
 }
+ast_t * as_int() {
+  *g_a = (ast_t) {
+    .type = at_int,
+    .pos = g_t->pos,
+    .var_name = *g_t,
+  };
+  g_t++;
+  return g_a++;
+}
 ast_t * as_str() {
   *g_a = (ast_t) {
     .type = at_str,
@@ -423,6 +434,7 @@ ast_t * as_str() {
 }
 ast_t * as_expr() {
   if (g_t->type == tt_ident)  return as_call();
+  if (g_t->type == tt_int)    return as_int();
   if (g_t->type == tt_string) return as_str();
   return restore("invalid expression");
 }

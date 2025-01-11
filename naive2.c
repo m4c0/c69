@@ -229,6 +229,7 @@ const char * var_type_names[] = {
 typedef enum ast_type_t {
   at_nil,
   at_call,
+  at_decl,
   at_err,
   at_extern,
   at_int,
@@ -239,6 +240,7 @@ typedef enum ast_type_t {
 const char * ast_type_names[] = {
   [at_nil]    = "nil",
   [at_call]   = "call",
+  [at_decl]   = "decl",
   [at_err]    = "err",
   [at_extern] = "extern",
   [at_int]    = "int",
@@ -457,13 +459,18 @@ ast_t * as_var(ast_t * a) {
 
   if (g_t->type == tt_lparen) return restore("this looks like a function - did you forget to use the `fn <type> <name>` syntax?");
 
+  if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
+  g_t++;
+
+  a->type = at_decl;
   return a;
 }
 ast_t * a_stmt() {
   switch (g_t->type) {
     case tt_semicolon: return as_empty();
     case tt_lbracket:  return as_block();
-    default: break;
+    case tt_ident:     break;
+    default:           return restore("expecting semi-colon");
   }
 
   if (take_ident("fn")) return as_fn();
@@ -471,6 +478,8 @@ ast_t * a_stmt() {
   ast_t * var = a_var_type();
   if (var->type == at_err) return var;
   if (var->var_type) return as_var(var);
+
+  if (take_ret_type()) return restore("this looks like a function - did you forget to use the `fn <type> <name>` syntax?");
 
   ast_t * r = as_expr();
   if (r->type == at_err) return r;

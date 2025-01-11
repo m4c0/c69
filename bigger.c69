@@ -8,7 +8,7 @@ char[]       g_file;
 char[102400] g_file_buf;
 int          g_file_len;
 
-void fail(int j, char[] msg) {
+fn void fail(int j, char[] msg) {
   warn(j, msg);
   exit(1);
 }

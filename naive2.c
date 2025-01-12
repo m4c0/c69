@@ -511,6 +511,18 @@ ast_t * as_l_expr() {
   return restore("invalid expression");
 }
 ast_t * as_expr() {
+  if (g_t->type == tt_lparen) {
+    g_t++;
+
+    ast_t * res = as_expr();
+    if (res->type == at_err) return res;
+
+    if (g_t->type != tt_rparen) return restore("expecting right parenthesis");
+
+    g_t++;
+    return res;
+  }
+
   ast_t * l = as_l_expr();
   if (l->type == at_err) return l;
 

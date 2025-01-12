@@ -303,12 +303,14 @@ typedef enum ast_type_t {
   at_assign,
   at_binop,
   at_call,
+  at_char,
   at_decl,
   at_err,
   at_extern,
   at_if,
   at_int,
   at_fn,
+  at_neg,
   at_str,
   at_var,
 } ast_type_t;
@@ -317,12 +319,14 @@ const char * ast_type_names[] = {
   [at_assign] = "assign",
   [at_binop]  = "binop",
   [at_call]   = "call",
+  [at_char]   = "char",
   [at_decl]   = "decl",
   [at_err]    = "err",
   [at_extern] = "extern",
   [at_if]     = "if",
   [at_int]    = "int",
   [at_fn]     = "fn",
+  [at_neg]    = "neg",
   [at_str]    = "str",
   [at_var]    = "var",
 };
@@ -537,6 +541,15 @@ ast_t * as_from_ident() {
   };
   return g_a++;
 }
+ast_t * as_char() {
+  *g_a = (ast_t) {
+    .type = at_char,
+    .pos = g_t->pos,
+    .var_name = *g_t,
+  };
+  g_t++;
+  return g_a++;
+}
 ast_t * as_int() {
   *g_a = (ast_t) {
     .type = at_int,
@@ -556,6 +569,7 @@ ast_t * as_str() {
   return g_a++;
 }
 ast_t * as_l_expr() {
+  if (g_t->type == tt_char)   return as_char();
   if (g_t->type == tt_ident)  return as_from_ident();
   if (g_t->type == tt_int)    return as_int();
   if (g_t->type == tt_string) return as_str();

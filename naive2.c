@@ -537,6 +537,9 @@ ast_t * as_var(ast_t * a) {
   a->type = at_decl;
   return a;
 }
+ast_t * as_if() {
+  return restore("TODO: if");
+}
 ast_t * a_stmt() {
   switch (g_t->type) {
     case tt_semicolon: return as_empty();
@@ -546,6 +549,7 @@ ast_t * a_stmt() {
   }
 
   if (take_ident("fn")) return as_fn();
+  if (take_ident("if")) return as_if();
 
   ast_t * var = a_var_type();
   if (var->type == at_err) return var;

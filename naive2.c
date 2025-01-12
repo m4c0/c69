@@ -92,9 +92,13 @@ typedef enum tok_type_t {
   tt_comma,
   tt_eq,
   tt_err,
+  tt_gt,
+  tt_gteq,
   tt_int,
   tt_ident,
   tt_lbracket,
+  tt_lt,
+  tt_lteq,
   tt_lparen,
   tt_lsqbr,
   tt_minus,
@@ -154,6 +158,15 @@ void t_punct(tok_type_t tt) {
   g_f++;
 }
 
+void t_or_eq(tok_type_t ne, tok_type_t eq) {
+  *g_t++ = (tok_t) {
+    .type = g_f[1] == '=' ? eq : ne,
+    .pos  = g_f,
+    .len  = g_f[1] == '=' ? 2 : 1,
+  };
+  g_f += g_f[1] == '=' ? 2 : 1;
+}
+
 void t_space() { while (cc_space(*g_f)) g_f++; }
 
 void t_string() {
@@ -195,6 +208,8 @@ void t_next() {
   if (cc_ident_start(*g_f)) return t_identifier();
   if (cc_space(*g_f)) return t_space();
   if (cc_digit(*g_f)) return t_int();
+  if (*g_f == '<') return t_or_eq(tt_lt, tt_lteq);
+  if (*g_f == '>') return t_or_eq(tt_gt, tt_gteq);
   if (*g_f == '/' && g_f[1] == '/') return t_comment();
   if (*g_f == '"') return t_string();
   if (*g_f == '=') return t_punct(tt_eq);
@@ -220,11 +235,19 @@ typedef enum oper_type_t {
   ot_nil,
   ot_plus,
   ot_minus,
+  ot_lt,
+  ot_lteq,
+  ot_gt,
+  ot_gteq,
 } oper_type_t;
 const char * oper_type_names[] = {
   [ot_nil]   = "nil",
   [ot_plus]  = "plus",
   [ot_minus] = "minus",
+  [ot_lt]    = "lt",
+  [ot_lteq]  = "lteq",
+  [ot_gt]    = "gt",
+  [ot_gteq]  = "gteq",
 };
 typedef enum var_type_t {
   vt_nil,
@@ -495,6 +518,10 @@ ast_t * as_expr() {
   switch (g_t->type) {
     case tt_plus:  ot = ot_plus;  break;
     case tt_minus: ot = ot_minus; break;
+    case tt_lt:    ot = ot_lt;    break;
+    case tt_gt:    ot = ot_gt;    break;
+    case tt_lteq:  ot = ot_lteq;  break;
+    case tt_gteq:  ot = ot_gteq;  break;
     default: return l;
   }
   g_t++;

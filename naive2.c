@@ -90,6 +90,7 @@ void usage(const char * argv0) {
 typedef enum tok_type_t {
   tt_nil,
   tt_comma,
+  tt_dot,
   tt_eq,
   tt_err,
   tt_gt,
@@ -222,6 +223,7 @@ void t_next() {
   if (*g_f == '[') return t_punct(tt_lsqbr);
   if (*g_f == ']') return t_punct(tt_rsqbr);
   if (*g_f == ';') return t_punct(tt_semicolon);
+  if (*g_f == '.') return t_punct(tt_dot);
   if (*g_f == ',') return t_punct(tt_comma);
 
   t_err(g_f++, "invalid character");
@@ -300,6 +302,7 @@ typedef struct ast_t {
   var_type_t     var_type;
   int            var_arity; // -1 == unknown[], 0 == none, n = some[n]
   tok_t          var_name;
+  struct ast_t * dot;
   struct ast_t * args;
   struct ast_t * body;
   struct ast_t * next;
@@ -481,10 +484,25 @@ ast_t * as_from_ident() {
     return as_assign(id);
   }
 
+  ast_t * dot = 0;
+  if (g_t->type == tt_dot) {
+    g_t++;
+
+    tok_t * t = g_t;
+    if (g_t->type != tt_ident) return restore("expecting identifier after dot");
+    if (take_ret_type()) {
+      g_t = t;
+      return restore("unexpected type name");
+    }
+
+    dot = as_from_ident();
+  }
+
   *g_a = (ast_t) {
-    .type = at_var,
-    .pos = id.pos,
+    .type     = at_var,
+    .pos      = id.pos,
     .var_name = id,
+    .dot      = dot,
   };
   return g_a++;
 }
@@ -675,6 +693,7 @@ void dump_ast(int ind, ast_t * r) {
     }
     write_str(" ");
     if (r->var_name.pos) write(1, r->var_name.pos, r->var_name.len); write_str("\n");
+    dump_ast(ind + 1, r->dot);
     dump_ast(ind + 1, r->args);
     dump_ast(ind + 1, r->body);
 

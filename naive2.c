@@ -151,7 +151,7 @@ void t_char() {
   g_f++;
 
   *g_t++ = (tok_t) {
-    .type = tt_err,
+    .type = tt_char,
     .pos = start,
     .len = g_f - start,
   };

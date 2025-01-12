@@ -45,9 +45,12 @@ try_s:
   mov  qword ptr [rbp - 16], -2
   call throwz
 try_e:
-catcher:
   add  rsp, 40
   ret
+catcher:
+  lea  rax, [rip + .cruel]
+  call putz
+  jmp  try_e
   .seh_endproc
 
 throwz:
@@ -60,13 +63,15 @@ throwz:
   int3
 
 ex_filter:
-  sub  rsp, 40
+  # EXCEPTION_EXECUTE_HANDLER 1
+  # EXCEPTION_CONTINUE_SEARCH 0
+  # EXCEPTION_CONTINUE_EXECUTION -1
   mov  eax, 1
-  add  rsp, 40
   ret
 
 .section .rodata
 .hello: .asciz "Hello"
+.cruel: .asciz "Cruel"
 .world: .asciz "World"
 
 # Footnotes:

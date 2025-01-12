@@ -273,6 +273,7 @@ typedef enum ast_type_t {
   at_decl,
   at_err,
   at_extern,
+  at_if,
   at_int,
   at_fn,
   at_str,
@@ -286,6 +287,7 @@ const char * ast_type_names[] = {
   [at_decl]   = "decl",
   [at_err]    = "err",
   [at_extern] = "extern",
+  [at_if]     = "if",
   [at_int]    = "int",
   [at_fn]     = "fn",
   [at_str]    = "str",
@@ -577,7 +579,18 @@ ast_t * as_var(ast_t * a) {
   return a;
 }
 ast_t * as_if() {
-  return restore("TODO: if");
+  ast_t * e = as_expr();
+  if (e->type == at_err) return e;
+
+  ast_t * b = a_stmt();
+  if (b->type == at_err) return b;
+
+  *g_a = (ast_t) {
+    .type = at_if,
+    .args = e,
+    .body = b,
+  };
+  return g_a++;
 }
 ast_t * a_stmt() {
   switch (g_t->type) {

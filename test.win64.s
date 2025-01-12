@@ -33,6 +33,8 @@ putz:
 thrower:
   .seh_proc thrower
   sub  rsp, 40
+  # Easier to use the C handler than dealing with its shenanigans. Example from ReactOS:
+  # https://github.com/reactos/reactos/blob/0520c75aaf3a9334d209e6b5ec04f15cb9b773c4/sdk/lib/crt/except/amd64/ehandler.c
   .seh_handler __C_specific_handler, @except
   .seh_handlerdata
   .long 1

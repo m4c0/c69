@@ -587,6 +587,17 @@ ast_t * as_expr() {
     g_t++;
     return res;
   }
+  if (g_t->type == tt_minus) {
+    tok_t * t = g_t++;
+    ast_t * l = as_expr();
+    if (l->type == at_err) return l;
+    *g_a = (ast_t) {
+      .type      = at_neg,
+      .pos       = t->pos,
+      .args      = l,
+    };
+    return g_a++;
+  }
 
   ast_t * l = as_l_expr();
   if (l->type == at_err) return l;

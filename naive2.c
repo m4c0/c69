@@ -90,6 +90,7 @@ void usage(const char * argv0) {
 typedef enum tok_type_t {
   tt_nil,
   tt_comma,
+  tt_div,
   tt_dot,
   tt_eq,
   tt_err,
@@ -102,7 +103,9 @@ typedef enum tok_type_t {
   tt_lteq,
   tt_lparen,
   tt_lsqbr,
+  tt_mod,
   tt_minus,
+  tt_mult,
   tt_plus,
   tt_rbracket,
   tt_rparen,
@@ -216,6 +219,9 @@ void t_next() {
   if (*g_f == '=') return t_punct(tt_eq);
   if (*g_f == '+') return t_punct(tt_plus);
   if (*g_f == '-') return t_punct(tt_minus);
+  if (*g_f == '*') return t_punct(tt_mult);
+  if (*g_f == '/') return t_punct(tt_div);
+  if (*g_f == '%') return t_punct(tt_mod);
   if (*g_f == '(') return t_punct(tt_lparen);
   if (*g_f == ')') return t_punct(tt_rparen);
   if (*g_f == '{') return t_punct(tt_lbracket);
@@ -237,6 +243,9 @@ typedef enum oper_type_t {
   ot_nil,
   ot_plus,
   ot_minus,
+  ot_mult,
+  ot_div,
+  ot_mod,
   ot_lt,
   ot_lteq,
   ot_gt,
@@ -246,6 +255,9 @@ const char * oper_type_names[] = {
   [ot_nil]   = "nil",
   [ot_plus]  = "plus",
   [ot_minus] = "minus",
+  [ot_mult]  = "mult",
+  [ot_div]   = "div",
+  [ot_mod]   = "mod",
   [ot_lt]    = "lt",
   [ot_lteq]  = "lteq",
   [ot_gt]    = "gt",
@@ -550,6 +562,9 @@ ast_t * as_expr() {
   switch (g_t->type) {
     case tt_plus:  ot = ot_plus;  break;
     case tt_minus: ot = ot_minus; break;
+    case tt_mult:  ot = ot_mult;  break;
+    case tt_div:   ot = ot_div;   break;
+    case tt_mod:   ot = ot_mod;   break;
     case tt_lt:    ot = ot_lt;    break;
     case tt_gt:    ot = ot_gt;    break;
     case tt_lteq:  ot = ot_lteq;  break;

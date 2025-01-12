@@ -8,6 +8,9 @@ main:
   lea  rax, [rip + .hello]
   call putz
 
+  # try { thrower() } catch (???) { ??? }
+  call thrower
+
   lea  rax, [rip + .world]
   call putz
 
@@ -26,6 +29,41 @@ putz:
   # clang use this trick to optimise, but it requires caller (i.e. "main" here)
   # to reserve the stack space
   # jmp puts@PLT
+
+thrower:
+  .seh_proc thrower
+  sub  rsp, 40
+  .seh_handler __C_specific_handler, @except
+  .seh_handlerdata
+  .long 1
+  .long (try_s)@IMGREL
+  .long (try_e)@IMGREL
+  .long (ex_filter)@IMGREL
+  .long (catcher)@IMGREL
+  .text
+try_s:
+  mov  qword ptr [rbp - 16], -2
+  call throwz
+try_e:
+catcher:
+  add  rsp, 40
+  ret
+  .seh_endproc
+
+throwz:
+  sub  rsp, 40
+  mov  rcx, 1    # Exception code
+  xor  rdx, rdx  # Exception flags
+  xor  r8,  r8   # Number of arguments
+  xor  r9,  r9   # Arguments
+  call RaiseException@PLT
+  int3
+
+ex_filter:
+  sub  rsp, 40
+  mov  eax, 1
+  add  rsp, 40
+  ret
 
 .section .rodata
 .hello: .asciz "Hello"

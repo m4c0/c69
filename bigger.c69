@@ -8,6 +8,17 @@ char[]       g_file;
 char[102400] g_file_buf;
 int          g_file_len;
 
+fn void write_str(char[] msg) write(2, msg, msg.len);
+fn void write_num(int n) {
+  if (n < 0) {
+    write_str("-");
+    n = -n;
+  }
+  if (n >= 10) write_num(n / 10);
+  char b = '0' + (n % 10);
+  write(2, b, 1);
+}
+
 fn void fail(int j, char[] msg) {
   warn(j, msg);
   exit(1);

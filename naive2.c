@@ -89,6 +89,7 @@ void usage(const char * argv0) {
 
 typedef enum tok_type_t {
   tt_nil,
+  tt_char,
   tt_comma,
   tt_div,
   tt_dot,
@@ -130,10 +131,6 @@ int cc_space(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 const char * g_f = g_file_buf;
 tok_t * g_t = g_toks;
 
-void t_comment() {
-  while (*g_f && *g_f != '\n') g_f++;
-}
-
 void t_err(const char * f, const char * msg) {
   warn(f, msg);
   *g_t++ = (tok_t) {
@@ -141,6 +138,27 @@ void t_err(const char * f, const char * msg) {
     .pos = f,
     .len = g_f - f,
   };
+}
+
+void t_char() {
+  const char * start = g_f;
+  g_f++;
+
+  // TODO: escape codes
+  g_f++;
+
+  if (*g_f != '\'') return t_err(g_f, "missing closing apostrophe");
+  g_f++;
+
+  *g_t++ = (tok_t) {
+    .type = tt_err,
+    .pos = start,
+    .len = g_f - start,
+  };
+}
+
+void t_comment() {
+  while (*g_f && *g_f != '\n') g_f++;
 }
 
 void t_identifier() {
@@ -212,6 +230,7 @@ void t_next() {
   if (cc_ident_start(*g_f)) return t_identifier();
   if (cc_space(*g_f)) return t_space();
   if (cc_digit(*g_f)) return t_int();
+  if (*g_f == '\'') return t_char();
   if (*g_f == '<') return t_or_eq(tt_lt, tt_lteq);
   if (*g_f == '>') return t_or_eq(tt_gt, tt_gteq);
   if (*g_f == '/' && g_f[1] == '/') return t_comment();

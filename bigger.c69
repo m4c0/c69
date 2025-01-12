@@ -19,6 +19,22 @@ fn void write_num(int n) {
   write(2, b, 1);
 }
 
+fn void warn(int j, char[] msg) {
+  int line = 1;
+  int col  = 1;
+
+  write_str(g_file);
+  if (j >= 0) {
+    write_str(":");
+    write_num(line);
+    write_str(":");
+    write_num(col);
+  }
+  write_str(": ");
+  write_str(msg);
+  write_str("\n");
+}
+
 fn void fail(int j, char[] msg) {
   warn(j, msg);
   exit(1);

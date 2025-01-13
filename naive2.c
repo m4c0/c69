@@ -322,6 +322,7 @@ typedef enum ast_type_t {
   at_neg,
   at_str,
   at_var,
+  at_while,
 } ast_type_t;
 const char * ast_type_names[] = {
   [at_nil]    = "nil",
@@ -338,6 +339,7 @@ const char * ast_type_names[] = {
   [at_neg]    = "neg",
   [at_str]    = "str",
   [at_var]    = "var",
+  [at_while]  = "while",
 };
 typedef struct ast_t {
   ast_type_t     type;
@@ -426,7 +428,8 @@ ast_t * as_fn() {
   r.var_type = take_ret_type();
   if (!r.var_type) return restore("invalid return type");
 
-  if (g_t->type != tt_ident) return restore("invalid export name");
+  // TODO: use a "take_ident" to avoid fns with kw name
+  if (g_t->type != tt_ident) return restore("invalid function name");
   r.var_name = *g_t++;
 
   if (g_t->type != tt_lparen) return restore("expecting left-parenthesis");
@@ -461,6 +464,7 @@ ast_t * as_fn() {
 }
 
 ast_t * as_block() {
+  // TODO: better restore 
   // TODO: support for scopes
   if (g_t->type != tt_lbracket) return restore("expecting left bracket");
   g_t++;
@@ -534,6 +538,7 @@ ast_t * as_from_ident() {
 
     tok_t * t = g_t;
     if (g_t->type != tt_ident) return restore("expecting identifier after dot");
+    // TODO: use a "take_ident" instead of testing/warning like this
     if (take_ret_type()) {
       g_t = t;
       return restore("unexpected type name");
@@ -678,6 +683,20 @@ ast_t * as_if() {
   };
   return g_a++;
 }
+ast_t * as_while() {
+  ast_t * e = as_expr();
+  if (e->type == at_err) return e;
+
+  ast_t * b = a_stmt();
+  if (b->type == at_err) return b;
+
+  *g_a = (ast_t) {
+    .type = at_while,
+    .args = e,
+    .body = b,
+  };
+  return g_a++;
+}
 ast_t * a_stmt() {
   switch (g_t->type) {
     case tt_semicolon: return as_empty();
@@ -688,6 +707,7 @@ ast_t * a_stmt() {
 
   if (take_ident("fn")) return as_fn();
   if (take_ident("if")) return as_if();
+  if (take_ident("while")) return as_while();
 
   ast_t * var = a_var_type();
   if (var->type == at_err) return var;

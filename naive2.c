@@ -317,6 +317,7 @@ typedef enum ast_type_t {
   at_err,
   at_extern,
   at_if,
+  at_index,
   at_int,
   at_fn,
   at_neg,
@@ -334,6 +335,7 @@ const char * ast_type_names[] = {
   [at_err]    = "err",
   [at_extern] = "extern",
   [at_if]     = "if",
+  [at_index]  = "index",
   [at_int]    = "int",
   [at_fn]     = "fn",
   [at_neg]    = "neg",
@@ -508,6 +510,20 @@ ast_t * as_call(tok_t id) {
   };
   return g_a++;
 }
+ast_t * as_index(tok_t id) {
+  ast_t * a = as_expr();
+  if (a->type == at_err) return a;
+
+  if (g_t->type != tt_rsqbr) return restore("expecting right square bracket");
+  g_t++;
+
+  *g_a = (ast_t) {
+    .type = at_index,
+    .var_name = id,
+    .args = a,
+  };
+  return g_a++;
+}
 ast_t * as_assign(tok_t l) {
   ast_t * r = as_expr();
   if (r->type == at_err) return r;
@@ -523,6 +539,10 @@ ast_t * as_assign(tok_t l) {
 ast_t * as_from_ident() {
   tok_t id = *g_t++;
 
+  if (g_t->type == tt_lsqbr) {
+    g_t++;
+    return as_index(id);
+  }
   if (g_t->type == tt_lparen) {
     g_t++;
     return as_call(id);

@@ -25,8 +25,9 @@ fn void warn(int j, char[] msg) {
 
   write_str(g_file);
   if (j >= 0) {
-    for (;;) {
-      if (g_file_buf[i] == '\n') {
+    int i = 0;
+    while (i < j) {
+      if (g_file_buf[i++] == '\n') {
         line++;
         col = 1;
       } else col++;

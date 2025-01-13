@@ -144,10 +144,19 @@ void t_char() {
   const char * start = g_f;
   g_f++;
 
-  // TODO: escape codes
+  if (*g_f == '\\') {
+    g_f++;
+    switch (*g_f) {
+      // TODO: other escape codes
+      case 'n':
+        break;
+      default:
+        return t_err(start, "invalid escape code");
+    }
+  }
   g_f++;
 
-  if (*g_f != '\'') return t_err(g_f, "missing closing apostrophe");
+  if (*g_f != '\'') return t_err(start, "missing closing apostrophe");
   g_f++;
 
   *g_t++ = (tok_t) {

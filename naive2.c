@@ -367,6 +367,11 @@ typedef struct ast_t {
 ast_t g_asts[102400];
 ast_t * g_a = g_asts;
 
+ast_t * err(const char * msg) {
+  *g_a = (ast_t) { at_err, g_t->pos };
+  warn(g_t->pos, msg);
+  return g_a++;
+}
 ast_t * restore(const char * msg) {
   *g_a = (ast_t) { at_err, g_t->pos };
   warn(g_t->pos, msg);
@@ -616,7 +621,7 @@ ast_t * as_l_expr() {
   if (g_t->type == tt_ident)  return as_from_ident();
   if (g_t->type == tt_int)    return as_int();
   if (g_t->type == tt_string) return as_str();
-  return restore("invalid expression");
+  return err("invalid expression");
 }
 ast_t * as_expr() {
   if (g_t->type == tt_lparen) {

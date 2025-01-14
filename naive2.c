@@ -94,6 +94,7 @@ typedef enum tok_type_t {
   tt_div,
   tt_dot,
   tt_eq,
+  tt_eqeq,
   tt_err,
   tt_gt,
   tt_gteq,
@@ -107,6 +108,8 @@ typedef enum tok_type_t {
   tt_mod,
   tt_minus,
   tt_mult,
+  tt_not,
+  tt_noteq,
   tt_plus,
   tt_rbracket,
   tt_rparen,
@@ -244,7 +247,8 @@ void t_next() {
   if (*g_f == '>') return t_or_eq(tt_gt, tt_gteq);
   if (*g_f == '/' && g_f[1] == '/') return t_comment();
   if (*g_f == '"') return t_string();
-  if (*g_f == '=') return t_punct(tt_eq);
+  if (*g_f == '!') return t_or_eq(tt_not, tt_noteq);
+  if (*g_f == '=') return t_or_eq(tt_eq, tt_eqeq);
   if (*g_f == '+') return t_punct(tt_plus);
   if (*g_f == '-') return t_punct(tt_minus);
   if (*g_f == '*') return t_punct(tt_mult);
@@ -267,29 +271,34 @@ void tokenise() { while (*g_f) t_next(); }
 
 /////////////////////////////////////////////////////////////
 
+// TODO: operator precedence
 typedef enum oper_type_t {
   ot_nil,
-  ot_plus,
-  ot_minus,
-  ot_mult,
   ot_div,
-  ot_mod,
-  ot_lt,
-  ot_lteq,
+  ot_eqeq,
   ot_gt,
   ot_gteq,
+  ot_lt,
+  ot_lteq,
+  ot_minus,
+  ot_mod,
+  ot_mult,
+  ot_noteq,
+  ot_plus,
 } oper_type_t;
 const char * oper_type_names[] = {
   [ot_nil]   = "nil",
-  [ot_plus]  = "plus",
-  [ot_minus] = "minus",
-  [ot_mult]  = "mult",
   [ot_div]   = "div",
-  [ot_mod]   = "mod",
-  [ot_lt]    = "lt",
-  [ot_lteq]  = "lteq",
+  [ot_eqeq]  = "eqeq",
   [ot_gt]    = "gt",
   [ot_gteq]  = "gteq",
+  [ot_lt]    = "lt",
+  [ot_lteq]  = "lteq",
+  [ot_minus] = "minus",
+  [ot_mod]   = "mod",
+  [ot_mult]  = "mult",
+  [ot_noteq] = "noteq",
+  [ot_plus]  = "plus",
 };
 typedef enum var_type_t {
   vt_nil,
@@ -647,6 +656,8 @@ ast_t * as_expr() {
     case tt_gt:    ot = ot_gt;    break;
     case tt_lteq:  ot = ot_lteq;  break;
     case tt_gteq:  ot = ot_gteq;  break;
+    case tt_eqeq:  ot = ot_eqeq;  break;
+    case tt_noteq: ot = ot_noteq; break;
     default: return l;
   }
   g_t++;

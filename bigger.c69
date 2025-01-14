@@ -27,10 +27,11 @@ fn void warn(int j, char[] msg) {
   if (j >= 0) {
     int i = 0;
     while (i < j) {
-      if (g_file_buf[i++] == '\n') {
-        line++;
+      if (g_file_buf[i] == '\n') {
+        line = line + 1;
         col = 1;
-      } else col++;
+      } else col = col + 1;
+      i = i + 1;
     }
     write_str(":");
     write_num(line);

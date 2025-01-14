@@ -324,6 +324,7 @@ typedef enum ast_type_t {
   at_char,
   at_decl,
   at_err,
+  at_else,
   at_extern,
   at_if,
   at_index,
@@ -341,6 +342,7 @@ const char * ast_type_names[] = {
   [at_call]   = "call",
   [at_char]   = "char",
   [at_decl]   = "decl",
+  [at_else]   = "else",
   [at_err]    = "err",
   [at_extern] = "extern",
   [at_if]     = "if",
@@ -362,6 +364,7 @@ typedef struct ast_t {
   struct ast_t * dot;
   struct ast_t * args;
   struct ast_t * body;
+  struct ast_t * body_e;
   struct ast_t * next;
 } ast_t;
 ast_t g_asts[102400];
@@ -712,10 +715,17 @@ ast_t * as_if() {
   ast_t * b = a_stmt();
   if (b->type == at_err) return b;
 
+  ast_t * els = 0;
+  if (take_ident("else")) {
+    els = a_stmt();
+    if (els->type == at_err) return b;
+  }
+
   *g_a = (ast_t) {
     .type = at_if,
     .args = e,
     .body = b,
+    .body_e = els,
   };
   return g_a++;
 }
@@ -820,6 +830,7 @@ void dump_ast(int ind, ast_t * r) {
     dump_ast(ind + 1, r->dot);
     dump_ast(ind + 1, r->args);
     dump_ast(ind + 1, r->body);
+    dump_ast(ind + 1, r->body_e);
 
     r = r->next;
   }

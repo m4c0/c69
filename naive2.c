@@ -440,6 +440,37 @@ ast_t * a_var_type() {
 
 ast_t * a_stmt();
 
+ast_t * as_enum() {
+  // TODO: use a "take_ident" to avoid fns with kw name
+  if (g_t->type != tt_ident) return restore("invalid enum name");
+
+  ast_t r = { 0 };
+  r.pos = g_t->pos;
+  r.var_name = *g_t++;
+
+  if (g_t->type != tt_lbracket) return restore("expecting bracket after enum name");
+  g_t++;
+
+  ast_t * n = 0;
+  while (g_t->type != tt_rbracket) {
+    if (g_t->type != tt_ident) return restore("invalid enum option name");
+    ast_t * a = g_a++;
+    a->var_name = *g_t;
+    if (!n) r.args = n = a;
+    else { n->next = a; n = a; }
+    g_t++;
+
+    if (g_t->type == tt_comma) {
+      g_t++;
+      continue;
+    }
+    if (g_t->type != tt_rbracket) return restore("expecting right bracket or comma");
+  }
+  g_t++;
+
+  *g_a = r;
+  return g_a++;
+}
 ast_t * as_fn() {
   ast_t r = { 0 };
 
@@ -751,6 +782,7 @@ ast_t * a_stmt() {
     default:           return restore("expecting semi-colon");
   }
 
+  if (take_ident("enum")) return as_enum();
   if (take_ident("fn")) return as_fn();
   if (take_ident("if")) return as_if();
   if (take_ident("while")) return as_while();

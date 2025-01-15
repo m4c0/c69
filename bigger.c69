@@ -52,8 +52,48 @@ fn void slurp(char[] file) {
   g_file = file;
   int fd = open(file, 0);
 
-  int len = read(fd, g_file_buf, 102400 - 1);
+  int len = read(fd, g_file_buf, g_file_buf.len - 1);
   if (len <= 0) fail(0, "failed to read file");
 
   close(fd);
+}
+
+fn void usage(char[] argv0) {
+  write_str("usage: ");
+  write_str(argv0);
+  write_str(" <file.c69>");
+  exit(1);
+}
+
+////////////////////////////////////////////////////////////
+
+enum tok_type_t {
+  tt_nil,
+  tt_char,
+  tt_comma,
+  tt_div,
+  tt_dot,
+  tt_eq,
+  tt_eqeq,
+  tt_err,
+  tt_gt,
+  tt_gteq,
+  tt_int,
+  tt_ident,
+  tt_lbracket,
+  tt_lt,
+  tt_lteq,
+  tt_lparen,
+  tt_lsqbr,
+  tt_mod,
+  tt_minus,
+  tt_mult,
+  tt_not,
+  tt_noteq,
+  tt_plus,
+  tt_rbracket,
+  tt_rparen,
+  tt_rsqbr,
+  tt_semicolon,
+  tt_string,
 }

@@ -440,6 +440,7 @@ ast_t * a_var_type() {
 
 ast_t * a_stmt();
 
+#define as_err(var, e) ast_t * var = (e); if (var->type == at_err) return var;
 ast_t * as_enum() {
   // TODO: use a "take_ident" to avoid fns with kw name
   if (g_t->type != tt_ident) return restore("invalid enum name");
@@ -471,6 +472,37 @@ ast_t * as_enum() {
   *g_a = r;
   return g_a++;
 }
+ast_t * as_struct() {
+  // TODO: use a "take_ident" to avoid fns with kw name
+  if (g_t->type != tt_ident) return restore("invalid struct name");
+
+  ast_t r = { 0 };
+  r.pos = g_t->pos;
+  r.var_name = *g_t++;
+
+  if (g_t->type != tt_lbracket) return restore("expecting bracket after struct name");
+  g_t++;
+
+  ast_t * n = 0;
+  while (g_t->type != tt_rbracket) {
+    if (g_t->type != tt_ident) return restore("invalid enum option name");
+    ast_t * a = g_a++;
+    a->var_name = *g_t;
+    if (!n) r.args = n = a;
+    else { n->next = a; n = a; }
+    g_t++;
+
+    if (g_t->type == tt_semicolon) {
+      g_t++;
+      continue;
+    }
+    if (g_t->type != tt_rbracket) return restore("expecting right bracket or semi-colon");
+  }
+  g_t++;
+
+  *g_a = r;
+  return g_a++;
+}
 ast_t * as_fn() {
   ast_t r = { 0 };
 
@@ -489,8 +521,7 @@ ast_t * as_fn() {
   while (g_t) {
     if (g_t->type == tt_rparen) break;
 
-    ast_t * aa = a_var_type();
-    if (aa->type == at_err) return aa;
+    as_err(aa, a_var_type());
     if (!aa->var_type) return restore("invalid parameter type");
 
     if (g_t->type == tt_ident) aa->var_name = *g_t++;
@@ -539,8 +570,7 @@ ast_t * as_call(tok_t id) {
   while (g_t) {
     if (g_t->type == tt_rparen) break;
 
-    ast_t * a = as_expr();
-    if (a->type == at_err) return a;
+    as_err(a, as_expr());
     if (!n) n = args = a;
     else { n->next = a; n = a; }
     if (g_t->type == tt_comma) {
@@ -559,8 +589,7 @@ ast_t * as_call(tok_t id) {
   return g_a++;
 }
 ast_t * as_index(tok_t id) {
-  ast_t * a = as_expr();
-  if (a->type == at_err) return a;
+  as_err(a, as_expr());
 
   if (g_t->type != tt_rsqbr) return restore("expecting right square bracket");
   g_t++;
@@ -573,8 +602,7 @@ ast_t * as_index(tok_t id) {
   return g_a++;
 }
 ast_t * as_assign(tok_t l) {
-  ast_t * r = as_expr();
-  if (r->type == at_err) return r;
+  as_err(r, as_expr());
 
   *g_a = (ast_t) {
     .type     = at_assign,
@@ -661,8 +689,7 @@ ast_t * as_expr() {
   if (g_t->type == tt_lparen) {
     g_t++;
 
-    ast_t * res = as_expr();
-    if (res->type == at_err) return res;
+    as_err(res, as_expr());
 
     if (g_t->type != tt_rparen) return restore("expecting right parenthesis");
 
@@ -671,8 +698,7 @@ ast_t * as_expr() {
   }
   if (g_t->type == tt_minus) {
     tok_t * t = g_t++;
-    ast_t * l = as_expr();
-    if (l->type == at_err) return l;
+    as_err(l, as_expr());
     *g_a = (ast_t) {
       .type      = at_neg,
       .pos       = t->pos,
@@ -681,8 +707,7 @@ ast_t * as_expr() {
     return g_a++;
   }
 
-  ast_t * l = as_l_expr();
-  if (l->type == at_err) return l;
+  as_err(l, as_l_expr());
 
   oper_type_t ot = ot_nil;
   switch (g_t->type) {
@@ -701,8 +726,7 @@ ast_t * as_expr() {
   }
   g_t++;
 
-  ast_t * r = as_expr();
-  if (r->type == at_err) return l;
+  as_err(r, as_expr());
 
   l->next = r;
   *g_a = (ast_t) {
@@ -739,18 +763,16 @@ ast_t * as_var(ast_t * a) {
   a->type = at_decl;
   return a;
 }
+ast_t * as_else() {
+  if (!take_ident("else")) return 0;
+
+  as_err(es, a_stmt());
+  return es;
+}
 ast_t * as_if() {
-  ast_t * e = as_expr();
-  if (e->type == at_err) return e;
-
-  ast_t * b = a_stmt();
-  if (b->type == at_err) return b;
-
-  ast_t * els = 0;
-  if (take_ident("else")) {
-    els = a_stmt();
-    if (els->type == at_err) return b;
-  }
+  as_err(e, as_expr());
+  as_err(b, a_stmt());
+  as_err(els, as_else());
 
   *g_a = (ast_t) {
     .type = at_if,
@@ -761,11 +783,8 @@ ast_t * as_if() {
   return g_a++;
 }
 ast_t * as_while() {
-  ast_t * e = as_expr();
-  if (e->type == at_err) return e;
-
-  ast_t * b = a_stmt();
-  if (b->type == at_err) return b;
+  as_err(e, as_expr());
+  as_err(b, a_stmt());
 
   *g_a = (ast_t) {
     .type = at_while,
@@ -787,14 +806,12 @@ ast_t * a_stmt() {
   if (take_ident("if")) return as_if();
   if (take_ident("while")) return as_while();
 
-  ast_t * var = a_var_type();
-  if (var->type == at_err) return var;
+  as_err(var, a_var_type());
   if (var->var_type) return as_var(var);
 
   if (take_ret_type()) return restore("this looks like a function - did you forget to use the `fn <type> <name>` syntax?");
 
-  ast_t * r = as_expr();
-  if (r->type == at_err) return r;
+  as_err(r, as_expr());
 
   if (g_t->type != tt_semicolon) return restore("expecting semi-colon");
   g_t++;
@@ -805,8 +822,7 @@ ast_t * a_stmt() {
 ast_t * a_extern() {
   if (!take_ident("fn")) restore("only 'extern fn' supported");
 
-  ast_t * r = as_fn();
-  if (r->type == at_err) return r;
+  as_err(r, as_fn());
   r->type = at_extern;
   return r;
 }
